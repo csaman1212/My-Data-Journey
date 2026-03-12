@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRB Non-Conformance Report</title>
+    <style>
+        /* BASE STYLES (Kept consistent) */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 20px;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 3px solid #0056b3;
+            padding-bottom: 10px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 20px;
+            margin-bottom: 20px;
+        }
+        .info-grid label {
+            font-weight: bold;
+        }
+        
+        /* Unified styling for all inputs and the new content-editable boxes */
+        .info-grid input[type="text"],
+        .info-grid input[type="date"],
+        .info-grid input[type="number"],
+        .info-grid select,
+        div[contenteditable="true"] { 
+            width: calc(100% - 10px);
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            vertical-align: top;
+            box-sizing: border-box; 
+            line-height: 1.5; 
+        }
+        
+        /* Hiding original textarea styles as they are replaced in the body */
+        textarea {
+            display: none; 
+        }
+
+        /* Rectangular Size Constraint for screen view for editable DIVs */
+        div[contenteditable="true"] {
+            min-height: 50px; 
+            resize: vertical;
+            overflow: auto;
+        }
+
+        /* MRB-SPECIFIC STYLES */
+        .disposition-options label {
+            display: block;
+            margin-bottom: 15px; 
+        }
+        .disposition-options input[type="radio"] {
+            margin-right: 8px;
+            transform: scale(1.2); 
+        }
+        .signature-line {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+        .signature-line div {
+            flex-basis: 48%;
+        }
+        .signature-line input[type="text"] {
+            border: none;
+            border-bottom: 1px dashed #333;
+            padding: 5px 0;
+            margin-top: 5px;
+            width: 90%;
+        }
+
+        /* BUTTON STYLES */
+        .button-container {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .button-container button {
+            padding: 12px 25px;
+            background-color: #3498db; 
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            margin: 0 10px;
+        }
+        .button-container #resetButton {
+            background-color: #e74c3c;
+        }
+        .button-container button:hover {
+            opacity: 0.9;
+        }
+
+        /* PRINT STYLES - DEFINITIVE FIX */
+        @media print {
+            .button-container {
+                display: none;
+            }
+            .container {
+                box-shadow: none;
+            }
+            
+            /* The key fix: Convert the editable DIVs from a 'box' to flowing text */
+            div[contenteditable="true"] {
+                page-break-inside: auto !important; 
+                height: auto !important;           
+                border: none !important;            
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                min-height: 20px !important; 
+                background-color: transparent !important;
+            }
+            
+            /* Clean up regular inputs and selects for printing */
+            input[type="text"], input[type="number"], input[type="date"], select {
+                background-color: transparent !important;
+                border: none !important;
+                border-bottom: 1px solid #000 !important;
+                padding: 0 !important;
+            }
+
+            /* Hiding the cursor pointer and resize handle in print */
+            div[contenteditable="true"]:focus {
+                outline: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Material Review Board (MRB) Non-Conformance Report</h1>
+
+        <div class="info-grid">
+            <label for="mrbNumber">MRB Report Number:</label>
+            <input type="text" id="mrbNumber" name="mrbNumber">
+
+            <label for="dateRaised">Date Raised:</label>
+            <input type="date" id="dateRaised" name="dateRaised">
+            
+            <label for="rirReference">RIR Reference # (Source Document):</label>
+            <input type="text" id="rirReference" name="rirReference" placeholder="e.g., RIR-20251028-1234">
+
+            <label for="raisedBy">Raised By (QC Technician):</label>
+            <input type="text" id="raisedBy" name="raisedBy">
+        </div>
+
+        <hr>
+
+        <h2>I. Non-Conforming Material Details</h2>
+        <div class="info-grid">
+            <label for="partNumber">Part Number & Revision:</label>
+            <input type="text" id="partNumber" name="partNumber">
+
+            <label for="supplierName">Supplier Name:</label>
+            <input type="text" id="supplierName" name="supplierName">
+
+            <label for="poNumber">Purchase Order (PO) Number:</label>
+            <input type="text" id="poNumber" name="poNumber">
+
+            <label for="lotNumber">Lot / Batch Number:</label>
+            <input type="text" id="lotNumber" name="lotNumber">
+
+            <label for="quantityChecked">Total Quantity Checked:</label>
+            <input type="number" id="quantityChecked" name="quantityChecked" min="1">
+            
+            <label for="quantityAffected">Quantity of Units Affected:</label>
+            <input type="number" id="quantityAffected" name="quantityAffected" min="1">
+            
+            <label for="ncPercentage">Non-Conformance Percentage:</label>
+            <input type="text" id="ncPercentage" name="ncPercentage" readonly placeholder="Calculated automatically">
+
+            <label for="defectCode">Primary Defect Code (from RIR):</label>
+            <input type="text" id="defectCode" name="defectCode" placeholder="e.g., D-401, D-115">
+
+        </div>
+
+        <h3 style="margin-top: 15px; color: #555;">Impact Assessment</h3>
+        <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+            <label for="severity">Severity:</label>
+            <label for="productionImpact">Production Impact:</label>
+            <label for="quarantineLocation">Quarantine Location:</label> <select id="severity" name="severity">
+                <option value="Minor">Minor (Visual/Cosmetic)</option>
+                <option value="Major">Major (Functional/Performance)</option>
+                <option value="Critical">Critical (Safety/Regulatory)</option>
+            </select>
+            
+            <select id="productionImpact" name="productionImpact">
+                <option value="None">None</option>
+                <option value="Minor">Minor Delay (<1 Shift)</option>
+                <option value="Major">Major Delay (>1 Shift)</option>
+                <option value="Stop">Line Stop</option>
+            </select>
+            
+            <input type="text" id="quarantineLocation" name="quarantineLocation" placeholder="e.g., Q-4, Dock Holding Area"> </div>
+        
+        <label for="description">**Detailed Non-Conformance Description:**</label>
+        <div id="description" contenteditable="true" style="min-height: 100px;" 
+             placeholder="Clearly describe the nature of the failure/discrepancy and reference the exact RIR line item. Be detailed." 
+             aria-label="Detailed Non-Conformance Description" role="textbox"></div>
+
+        <hr>
+
+        <h2>II. Root Cause Analysis (Engineering/Quality)</h2>
+        <label for="potentialCause">**Suspected Root Cause:**</label>
+        <div id="potentialCause" contenteditable="true" style="min-height: 75px;" 
+             placeholder="Identify the likely source: Supplier Process, Specification Error, Transit Damage, etc. Detail the evidence supporting the cause." 
+             aria-label="Suspected Root Cause" role="textbox"></div>
+        
+        <label for="containmentAction">**Immediate Containment Action Taken:**</label>
+        <div id="containmentAction" contenteditable="true" style="min-height: 50px;" 
+             placeholder="e.g., Material quarantined in area Q-4, Supplier notified via email, Production hold issued." 
+             aria-label="Immediate Containment Action Taken" role="textbox"></div>
+
+        <hr>
+
+        <h2>III. MRB Final Disposition</h2>
+        <div class="disposition-options">
+            <label>
+                <input type="radio" name="finalDisposition" value="Use As Is">
+                **Use As Is (Waiver):** Non-conformance does not affect fit, form, or function.
+            </label>
+            <label>
+                <input type="radio" name="finalDisposition" value="Rework">
+                **Rework to Specification:** Can be corrected to meet requirements using a defined internal procedure.
+            </label>
+            <label>
+                <input type="radio" name="finalDisposition" value="Return To Supplier/Debit">
+                **Return to Supplier/Debit:** Rejected and returned for credit or replacement.
+            </label>
+            <label>
+                <input type="radio" name="finalDisposition" value="Scrap">
+                **Scrap:** Non-recoverable and must be destroyed.
+            </label>
+        </div>
+
+        <label for="dispositionNotes">**Disposition Notes & Instructions:**</label>
+        <div id="dispositionNotes" contenteditable="true" style="min-height: 75px;" 
+             placeholder="If Rework, cite the procedure (e.g., WI-QC-005, step 3) and estimated time. If Use As Is, cite the authorizing document (e.g., ECN 2025-45)." 
+             aria-label="Disposition Notes & Instructions" role="textbox"></div>
+        
+        <div class="signature-line">
+            <div>
+                <label>Quality Approval (Signature/Stamp)</label>
+                <input type="text" name="qualitySignature">
+                <label for="qualityDate">Date:</label>
+                <input type="date" id="qualityDate" name="qualityDate">
+            </div>
+            <div>
+                <label>Engineering Approval (Signature/Stamp)</label>
+                <input type="text" name="engineeringSignature">
+                <label for="engineeringDate">Date:</label>
+                <input type="date" id="engineeringDate" name="engineeringDate">
+            </div>
+        </div>
+        
+        <hr>
+
+        <h2>IV. Notes / Additional Comments (Overall)</h2>
+        <div id="comments" contenteditable="true" style="min-height: 75px;" 
+             placeholder="Any other relevant information not captured above." 
+             aria-label="Notes / Additional Comments (Overall)" role="textbox"></div>
+
+
+        <div class="button-container">
+            <button type="button" onclick="triggerPrint()">Print Report / Save as PDF</button>
+            <button type="reset" id="resetButton">Clear Form</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Placeholder Functionality for contenteditable ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[contenteditable="true"]').forEach(div => {
+                const placeholderText = div.getAttribute('placeholder');
+                
+                if (!div.textContent.trim() && placeholderText) {
+                    div.textContent = placeholderText;
+                    div.classList.add('placeholder');
+                }
+
+                div.addEventListener('focus', () => {
+                    if (div.classList.contains('placeholder')) {
+                        div.textContent = '';
+                        div.classList.remove('placeholder');
+                    }
+                });
+
+                div.addEventListener('blur', () => {
+                    if (!div.textContent.trim()) {
+                        div.textContent = placeholderText;
+                        div.classList.add('placeholder');
+                    }
+                });
+            });
+            calculateNonConformancePercentage();
+        });
+        
+        // Add a style rule for the placeholder text appearance
+        const style = document.createElement('style');
+        style.innerHTML = `
+            div[contenteditable="true"].placeholder {
+                color: #aaa;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Function to trigger the browser print dialog
+        function triggerPrint() {
+            document.querySelectorAll('[contenteditable="true"]').forEach(div => {
+                if (div.classList.contains('placeholder')) {
+                    div.textContent = '';
+                }
+            });
+
+            window.print();
+            
+            setTimeout(() => {
+                document.querySelectorAll('[contenteditable="true"]').forEach(div => {
+                    const placeholderText = div.getAttribute('placeholder');
+                    if (!div.textContent.trim() && placeholderText) {
+                        div.textContent = placeholderText;
+                        div.classList.add('placeholder');
+                    }
+                });
+                console.log("Please use your browser's print dialogue (Ctrl+P or Cmd+P) and select 'Save as PDF' to create a permanent record.");
+            }, 100);
+        }
+
+        // Function to calculate and update the percentage
+        function calculateNonConformancePercentage() {
+            const checkedInput = document.getElementById('quantityChecked');
+            const affectedInput = document.getElementById('quantityAffected');
+            const percentageInput = document.getElementById('ncPercentage');
+
+            const checked = parseFloat(checkedInput.value);
+            const affected = parseFloat(affectedInput.value);
+
+            if (checked > 0 && affected >= 0) {
+                const percentage = (affected / checked) * 100;
+                percentageInput.value = percentage.toFixed(2) + ' %';
+            } else if (affected > 0 && (isNaN(checked) || checked == 0)) {
+                 percentageInput.value = 'ERR: Missing Checked Qty';
+            } else {
+                percentageInput.value = '';
+            }
+        }
+
+        // Attach the calculation function to the input fields for real-time updates
+        document.getElementById('quantityChecked').addEventListener('input', calculateNonConformancePercentage);
+        document.getElementById('quantityAffected').addEventListener('input', calculateNonConformancePercentage);
+
+        // Auto-fill initial control numbers and date
+        window.onload = function() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = (today.getMonth() + 1).toString().padStart(2, '0');
+            const day = today.getDate().toString().padStart(2, '0');
+            const hours = today.getHours().toString().padStart(2, '0');
+            const minutes = today.getMinutes().toString().padStart(2, '0');
+            
+            document.getElementById('dateRaised').value = `${year}-${month}-${day}`;
+            document.getElementById('mrbNumber').value = `MRB-${year}${month}${day}-${hours}${minutes}`;
+        };
+    </script>
+</body>
+</html>

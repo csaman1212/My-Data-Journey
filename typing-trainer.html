@@ -391,15 +391,11 @@
 
     button.kb-key:hover:not(:disabled) { transform: translateY(-1px); }
     button.kb-key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    button.kb-key:disabled { cursor: default; }
+    button.kb-key:disabled { cursor: default; opacity: 0.5; }
 
-    .kb-key.status-new { background: var(--new-bg); color: var(--new-text); }
-    .kb-key.status-learning { background: var(--learning-bg); color: var(--learning-text); }
-    .kb-key.status-weak { background: var(--weak-bg); color: var(--weak-text); }
-    .kb-key.status-mastered { background: var(--mastered-bg); color: var(--mastered-text); }
-    .kb-key.is-focus { box-shadow: 0 0 0 3px var(--accent); }
+    .kb-key.is-active { background: var(--accent); color: #fff; }
     .kb-key.is-selected { box-shadow: 0 0 0 2px var(--accent-2) inset; }
-    .kb-key.is-focus.is-selected { box-shadow: 0 0 0 3px var(--accent), 0 0 0 5px var(--accent-2); }
+    .kb-key.is-active.is-selected { box-shadow: 0 0 0 2px var(--accent-2) inset, 0 0 0 4px var(--accent); }
 
     .legend {
         display: flex;
@@ -429,7 +425,7 @@
     .legend-swatch.status-learning { background: var(--learning-bg); border-color: var(--learning-bg); }
     .legend-swatch.status-weak { background: var(--weak-bg); border-color: var(--weak-bg); }
     .legend-swatch.status-mastered { background: var(--mastered-bg); border-color: var(--mastered-bg); }
-    .legend-swatch.legend-ring { background: var(--panel-bg-2); box-shadow: 0 0 0 2px var(--accent); }
+    .legend-swatch.legend-active { background: var(--accent); border-color: var(--accent); }
     .legend-swatch.legend-selected { background: var(--panel-bg-2); box-shadow: 0 0 0 2px var(--accent-2) inset; }
 
     .kb-key.home-dot::after {
@@ -591,7 +587,7 @@
             <span class="legend-swatch status-mastered"></span><span>Mastered</span>
         </div>
         <div class="legend-group">
-            <span class="legend-swatch legend-ring"></span><span>Currently introducing</span>
+            <span class="legend-swatch legend-active"></span><span>Key to type now</span>
             <span class="legend-swatch legend-selected"></span><span>Selected for drill</span>
         </div>
     </div>
@@ -606,7 +602,8 @@
         <ul>
             <li><strong>Adaptive Lesson:</strong> starts with a couple of keys and unlocks new ones automatically once you're fast and accurate on the current set.</li>
             <li><strong>Weakness Drill:</strong> click letters on the keyboard to build words concentrated on the keys you want to improve. Leave nothing selected and it auto-targets your weakest keys.</li>
-            <li>Key colors: gray = not introduced, blue = new, yellow = still learning, red = weak, green = mastered.</li>
+            <li>Key colors in the "All keys" row: gray = not introduced, blue = new, yellow = still learning, red = weak, green = mastered.</li>
+            <li>The keyboard below only highlights the exact key you should press next; it doesn't repeat the mastery colors shown above.</li>
             <li>The progress bar under "Learning rate" shows how close your current key is to unlocking the next one.</li>
             <li>Every few unlocked keys, a review lesson mixes everything you've learned so far and tells you afterward if anything needs re-practice.</li>
         </ul>
@@ -951,6 +948,7 @@
         el.reviewBanner.hidden = !dueForReview;
         buildCharSpans();
         updateCaretDisplay();
+        renderKeyboardColors();
         stopTicking();
     }
 
@@ -1035,14 +1033,14 @@
     }
 
     function renderKeyboardColors() {
+        var nextChar = lesson.text[lesson.typed.length];
         KEY_ORDER.forEach(function (letter, i) {
             var btn = keyButtonEls[letter];
             if (!btn) return;
-            var status = classifyKey(letter, i);
             var selected = state.weakKeysManual.indexOf(letter) !== -1;
             var locked = i >= state.unlockedCount;
-            btn.className = 'kb-key status-' + status +
-                (i === state.unlockedCount - 1 ? ' is-focus' : '') +
+            btn.className = 'kb-key' +
+                (letter === nextChar ? ' is-active' : '') +
                 (selected ? ' is-selected' : '') +
                 (letter === 'f' || letter === 'j' ? ' home-dot' : '');
             btn.disabled = locked;

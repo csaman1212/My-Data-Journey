@@ -215,6 +215,40 @@
 
     .trend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 
+    .unlock-progress {
+        margin-bottom: 14px;
+    }
+
+    .unlock-progress-text {
+        font-size: 12px;
+        color: var(--dim);
+        margin-bottom: 6px;
+    }
+
+    .progress-bar.small { height: 5px; }
+
+    .review-banner {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--accent-2);
+        background: var(--panel-bg);
+        border: 1px solid var(--accent-2);
+        border-radius: 8px;
+        padding: 10px 16px;
+        margin-bottom: 10px;
+    }
+
+    .review-result {
+        font-size: 13px;
+        border-radius: 8px;
+        padding: 10px 16px;
+        margin-bottom: 10px;
+        border: 1px solid var(--border);
+    }
+
+    .review-result.all-clear { color: var(--mastered-text); background: var(--mastered-bg); border-color: var(--mastered-bg); }
+    .review-result.has-weak { color: var(--weak-text); background: var(--weak-bg); border-color: var(--weak-bg); }
+
     .accuracy-sentence {
         font-size: 13px;
         color: var(--dim);
@@ -521,6 +555,11 @@
             <span><span class="trend-dot" id="trendDot" aria-hidden="true"></span>Learning rate: <strong id="learningRate">0.0wpm/lesson</strong></span>
         </div>
 
+        <div class="unlock-progress">
+            <div class="unlock-progress-text" id="unlockProgressText">Unlocking next key…</div>
+            <div class="progress-bar small"><div class="progress-fill" id="unlockProgressFill" style="width:0%"></div></div>
+        </div>
+
         <p class="accuracy-sentence" id="accuracySentence">0 lessons with 100% accuracy.</p>
 
         <div class="daily-goal-label"><span>Daily goal</span><span id="dailyGoalText">0 / 20 minutes</span></div>
@@ -532,6 +571,9 @@
         <button type="button" class="mode-btn" id="weaknessModeBtn" aria-pressed="false">Weakness Drill</button>
     </div>
     <p class="weakness-hint" id="weaknessHint" hidden>Click letters on the keyboard below to focus your practice on them. Leave none selected to auto-target your weakest keys.</p>
+
+    <p class="review-banner" id="reviewBanner" hidden>Review lesson — mixing everything you've unlocked so far to check retention.</p>
+    <p class="review-result" id="reviewResult" hidden></p>
 
     <div class="panel">
         <div class="text-display" id="textDisplay" tabindex="0" aria-label="Typing practice text, click to focus"></div>
@@ -565,6 +607,8 @@
             <li><strong>Adaptive Lesson:</strong> starts with a couple of keys and unlocks new ones automatically once you're fast and accurate on the current set.</li>
             <li><strong>Weakness Drill:</strong> click letters on the keyboard to build words concentrated on the keys you want to improve. Leave nothing selected and it auto-targets your weakest keys.</li>
             <li>Key colors: gray = not introduced, blue = new, yellow = still learning, red = weak, green = mastered.</li>
+            <li>The progress bar under "Learning rate" shows how close your current key is to unlocking the next one.</li>
+            <li>Every few unlocked keys, a review lesson mixes everything you've learned so far and tells you afterward if anything needs re-practice.</li>
         </ul>
         <div class="dialog-actions"><button type="button" class="btn primary" id="closeHelpBtn">Got it</button></div>
     </div>
@@ -598,6 +642,7 @@
     var LESSON_WORD_COUNT = 20;
     var MIN_ATTEMPTS_TO_UNLOCK = 15;
     var TARGET_ACCURACY_PCT = 90;
+    var REVIEW_INTERVAL_UNLOCKS = 3;
 
     var KB_ROWS = [
         ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
@@ -631,7 +676,8 @@
             mode: 'adaptive',
             weakKeysManual: [],
             goalMinutes: 20,
-            targetWpm: 25
+            targetWpm: 25,
+            lastReviewAtUnlockedCount: 2
         };
     }
 
@@ -645,6 +691,7 @@
                     Object.assign(base, parsed);
                     base.keyStats = (parsed.keyStats && typeof parsed.keyStats === 'object') ? parsed.keyStats : {};
                     base.weakKeysManual = Array.isArray(parsed.weakKeysManual) ? parsed.weakKeysManual : [];
+                    if (typeof parsed.lastReviewAtUnlockedCount !== 'number') base.lastReviewAtUnlockedCount = base.unlockedCount;
                 }
             }
         } catch (e) { /* corrupted or inaccessible storage: fall back to defaults */ }
@@ -678,6 +725,10 @@
         topSpeed: document.getElementById('topSpeed'),
         learningRate: document.getElementById('learningRate'),
         trendDot: document.getElementById('trendDot'),
+        unlockProgressText: document.getElementById('unlockProgressText'),
+        unlockProgressFill: document.getElementById('unlockProgressFill'),
+        reviewBanner: document.getElementById('reviewBanner'),
+        reviewResult: document.getElementById('reviewResult'),
         accuracySentence: document.getElementById('accuracySentence'),
         dailyGoalText: document.getElementById('dailyGoalText'),
         dailyGoalFill: document.getElementById('dailyGoalFill'),
@@ -718,7 +769,8 @@
         correctCount: 0,
         incorrectCount: 0,
         charSpans: [],
-        wordBounds: []
+        wordBounds: [],
+        isReview: false
     };
 
     var tickInterval = null;
@@ -814,9 +866,15 @@
         return word;
     }
 
-    function generateLessonWords() {
+    function generateLessonWords(isReview) {
         var pool = KEY_ORDER.slice(0, state.unlockedCount);
-        var weights = buildWeights(pool);
+        var weights;
+        if (isReview) {
+            weights = {};
+            pool.forEach(function (l) { weights[l] = 1; });
+        } else {
+            weights = buildWeights(pool);
+        }
         var words = [];
         for (var i = 0; i < LESSON_WORD_COUNT; i++) words.push(generateWord(pool, weights));
         return words;
@@ -874,7 +932,15 @@
     }
 
     function startNewLesson() {
-        lesson.words = generateLessonWords();
+        var dueForReview = state.mode === 'adaptive' &&
+            state.unlockedCount > 2 &&
+            (state.unlockedCount - state.lastReviewAtUnlockedCount) >= REVIEW_INTERVAL_UNLOCKS;
+        if (dueForReview) {
+            state.lastReviewAtUnlockedCount = state.unlockedCount;
+            persistState();
+        }
+        lesson.isReview = dueForReview;
+        lesson.words = generateLessonWords(dueForReview);
         lesson.text = lesson.words.join(' ');
         lesson.typed = '';
         lesson.startTime = null;
@@ -882,6 +948,7 @@
         lesson.correctCount = 0;
         lesson.incorrectCount = 0;
         el.hiddenInput.value = '';
+        el.reviewBanner.hidden = !dueForReview;
         buildCharSpans();
         updateCaretDisplay();
         stopTicking();
@@ -998,6 +1065,28 @@
         el.trendDot.style.background = state.learningRate >= 0 ? 'var(--positive)' : 'var(--negative)';
     }
 
+    function renderUnlockProgress() {
+        if (state.unlockedCount >= KEY_ORDER.length) {
+            el.unlockProgressText.textContent = 'All keys unlocked.';
+            el.unlockProgressFill.style.width = '100%';
+            return;
+        }
+        var activeLetter = KEY_ORDER[state.unlockedCount - 1];
+        var nextLetter = KEY_ORDER[state.unlockedCount];
+        var s = state.keyStats[activeLetter];
+        var attempts = s ? s.attempts : 0;
+        var accFraction = s && s.attempts > 0 ? s.correct / s.attempts : 0;
+        var spd = s ? speedFromAvgMs(s.avgMs) : 0;
+        var accOk = attempts > 0 && accFraction >= TARGET_ACCURACY_PCT / 100;
+        var spdOk = spd >= state.targetWpm;
+        var repsPct = clamp((attempts / MIN_ATTEMPTS_TO_UNLOCK) * 100, 0, 100);
+        el.unlockProgressFill.style.width = repsPct + '%';
+        el.unlockProgressText.textContent = 'Unlocking ' + nextLetter.toUpperCase() + ': ' +
+            Math.min(attempts, MIN_ATTEMPTS_TO_UNLOCK) + '/' + MIN_ATTEMPTS_TO_UNLOCK + ' reps, accuracy ' +
+            Math.round(accFraction * 100) + '%' + (accOk ? ' ✓' : ' (need ' + TARGET_ACCURACY_PCT + '%)') +
+            ', speed ' + spd.toFixed(1) + 'wpm' + (spdOk ? ' ✓' : ' (need ' + state.targetWpm + 'wpm)');
+    }
+
     function renderAccuracySentence() {
         var avgAcc = state.lessonsToday > 0 ? Math.round(state.accuracySumToday / state.lessonsToday) : 100;
         var lessonWord = state.lessonsToday === 1 ? 'lesson' : 'lessons';
@@ -1016,6 +1105,7 @@
         renderAllKeysRow();
         renderKeyboardColors();
         renderCurrentKeyPanel();
+        renderUnlockProgress();
         renderAccuracySentence();
         renderDailyGoal();
     }
@@ -1033,6 +1123,7 @@
     }
 
     function finalizeLesson() {
+        var wasReview = lesson.isReview;
         var minutes = liveMinutesElapsed();
         var wpm = minutes > 0 ? (lesson.correctCount / 5) / minutes : 0;
         var total = lesson.correctCount + lesson.incorrectCount;
@@ -1059,6 +1150,22 @@
 
         el.liveAnnouncer.textContent = 'Lesson complete: ' + wpm.toFixed(1) + ' words per minute, ' + Math.round(accuracy) + '% accuracy.';
 
+        if (wasReview) {
+            var weakKeys = [];
+            for (var wi = 0; wi < state.unlockedCount; wi++) {
+                var wLetter = KEY_ORDER[wi];
+                if (classifyKey(wLetter, wi) === 'weak') weakKeys.push(wLetter.toUpperCase());
+            }
+            el.reviewResult.hidden = false;
+            el.reviewResult.className = 'review-result ' + (weakKeys.length ? 'has-weak' : 'all-clear');
+            el.reviewResult.textContent = weakKeys.length
+                ? 'Review complete — re-practice: ' + weakKeys.join(', ')
+                : 'Review complete — solid on everything so far.';
+            el.liveAnnouncer.textContent += weakKeys.length
+                ? ' Review complete. Re-practice: ' + weakKeys.join(', ') + '.'
+                : ' Review complete. Solid on everything so far.';
+        }
+
         startNewLesson();
     }
 
@@ -1083,6 +1190,7 @@
         renderAllKeysRow();
         renderKeyboardColors();
         renderCurrentKeyPanel();
+        renderUnlockProgress();
 
         if (lesson.typed.length >= lesson.text.length) {
             finalizeLesson();
@@ -1179,6 +1287,7 @@
         if (!confirmed) return;
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* storage unavailable */ }
         state = defaultState();
+        el.reviewResult.hidden = true;
         setMode(state.mode);
         buildAllKeysRow();
         renderKeyboardColors();

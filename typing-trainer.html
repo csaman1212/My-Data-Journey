@@ -315,6 +315,8 @@
 
     .weakness-hint[hidden] { display: none; }
 
+    .text-panel { position: relative; }
+
     .text-display {
         font-family: 'Courier New', monospace;
         font-size: clamp(18px, 3.4vw, 24px);
@@ -323,6 +325,23 @@
         cursor: text;
         user-select: none;
     }
+
+    .focus-overlay {
+        position: absolute;
+        inset: 0;
+        border: none;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .focus-overlay[hidden] { display: none; }
 
     .char {
         color: var(--dim);
@@ -571,9 +590,10 @@
     <p class="review-banner" id="reviewBanner" hidden>Review lesson — mixing everything you've unlocked so far to check retention.</p>
     <p class="review-result" id="reviewResult" hidden></p>
 
-    <div class="panel">
+    <div class="panel text-panel">
         <div class="text-display" id="textDisplay" tabindex="0" aria-label="Typing practice text, click to focus"></div>
         <input type="text" class="hidden-input" id="hiddenInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Typing input">
+        <button type="button" class="focus-overlay" id="focusOverlay" hidden>Paused — click to resume typing</button>
     </div>
 
     <div class="panel keyboard" id="keyboard"></div>
@@ -740,6 +760,7 @@
         weaknessHint: document.getElementById('weaknessHint'),
         textDisplay: document.getElementById('textDisplay'),
         hiddenInput: document.getElementById('hiddenInput'),
+        focusOverlay: document.getElementById('focusOverlay'),
         keyboard: document.getElementById('keyboard'),
         liveAnnouncer: document.getElementById('liveAnnouncer'),
         helpBtn: document.getElementById('helpBtn'),
@@ -1260,9 +1281,31 @@
     el.textDisplay.addEventListener('focus', function () { el.hiddenInput.focus(); });
     el.hiddenInput.addEventListener('input', onHiddenInput);
 
+    function anyDialogOpen() {
+        return el.helpDialog.open || el.settingsDialog.open;
+    }
+
+    el.hiddenInput.addEventListener('blur', function () {
+        if (!anyDialogOpen()) el.focusOverlay.hidden = false;
+    });
+    el.hiddenInput.addEventListener('focus', function () {
+        el.focusOverlay.hidden = true;
+    });
+    el.focusOverlay.addEventListener('click', function () {
+        el.focusOverlay.hidden = true;
+        el.hiddenInput.focus();
+    });
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && !anyDialogOpen()) el.hiddenInput.focus();
+    });
+    window.addEventListener('focus', function () {
+        if (!anyDialogOpen()) el.hiddenInput.focus();
+    });
+
     el.helpBtn.addEventListener('click', function () { el.helpDialog.showModal(); });
     el.closeHelpBtn.addEventListener('click', function () { el.helpDialog.close(); });
     el.helpDialog.addEventListener('click', function (e) { if (e.target === el.helpDialog) el.helpDialog.close(); });
+    el.helpDialog.addEventListener('close', function () { el.hiddenInput.focus(); });
 
     el.settingsBtn.addEventListener('click', function () {
         el.goalMinutesInput.value = state.goalMinutes;
@@ -1279,6 +1322,7 @@
         el.settingsDialog.close();
     });
     el.settingsDialog.addEventListener('click', function (e) { if (e.target === el.settingsDialog) el.settingsDialog.close(); });
+    el.settingsDialog.addEventListener('close', function () { el.hiddenInput.focus(); });
 
     el.resetProgressBtn.addEventListener('click', function () {
         var confirmed = window.confirm('This will erase all saved typing progress. Continue?');

@@ -379,6 +379,35 @@
         margin-top: 4px;
     }
 
+    .keyboard-toggle-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+
+    .keyboard-toggle-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+        font-weight: 600;
+    }
+
+    .keyboard-toggle-label input {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .keyboard-toggle-hint {
+        color: var(--dim);
+    }
+
     .kb-row {
         display: flex;
         gap: clamp(2px, 0.8vw, 5px);
@@ -596,6 +625,14 @@
         <button type="button" class="focus-overlay" id="focusOverlay" hidden>Paused — click to resume typing</button>
     </div>
 
+    <div class="keyboard-toggle-row">
+        <label class="keyboard-toggle-label">
+            <input type="checkbox" id="keyboardVisibleToggle" checked>
+            Keyboard reference
+        </label>
+        <span class="keyboard-toggle-hint" id="keyboardAutoHideHint"></span>
+    </div>
+
     <div class="panel keyboard" id="keyboard"></div>
 
     <div class="panel legend">
@@ -626,6 +663,8 @@
             <li>The keyboard below only highlights the exact key you should press next; it doesn't repeat the mastery colors shown above.</li>
             <li>The progress bar under "Learning rate" shows how close your current key is to unlocking the next one.</li>
             <li>Every few unlocked keys, a review lesson mixes everything you've learned so far and tells you afterward if anything needs re-practice.</li>
+            <li>Once enough real English words can be built from your unlocked keys, lessons switch from letter drills to complete words automatically.</li>
+            <li>The "Keyboard reference" checkbox below the keyboard hides it to force memorization; by default it auto-hides after 3 lessons (adjustable, or turn it off, in Settings). Check the box anytime to bring it back.</li>
         </ul>
         <div class="dialog-actions"><button type="button" class="btn primary" id="closeHelpBtn">Got it</button></div>
     </div>
@@ -641,6 +680,10 @@
         <div class="field-row">
             <label for="targetWpmInput">Target speed to master a key (wpm)</label>
             <input type="number" id="targetWpmInput" min="5" max="150" step="1">
+        </div>
+        <div class="field-row">
+            <label for="autoHideInput">Auto-hide keyboard after (lessons, 0 = never)</label>
+            <input type="number" id="autoHideInput" min="0" max="20" step="1">
         </div>
         <div class="dialog-actions">
             <button type="button" class="btn danger" id="resetProgressBtn">Reset progress</button>
@@ -660,6 +703,115 @@
     var MIN_ATTEMPTS_TO_UNLOCK = 15;
     var TARGET_ACCURACY_PCT = 90;
     var REVIEW_INTERVAL_UNLOCKS = 3;
+    var MIN_REAL_WORD_MATCHES = 6;
+
+    var REAL_WORDS = [
+        'a','i','an','as','at','am','if','in','is','it','of','on','or','so','to','up','us','go','no','do','he','we','my',
+        'add','ago','aid','air','all','and','ant','any','arm','art','ash','ask','bad','bag','ban','bar','bat','bed','big',
+        'bit','box','boy','bug','bus','but','buy','can','cap','car','cat','cop','cow','cry','cup','cut','dad','dam','day',
+        'den','did','dig','dog','dot','dry','due','dug','ear','eat','egg','end','era','eye','fan','far','fat','fed','few',
+        'fig','fit','fix','fly','fog','for','fun','fur','gap','gas','get','god','got','gun','guy','gym','had','half','ham',
+        'has','hat','her','hey','hid','him','his','hit','hot','how','hug','hut','ice','ink','its','jam','jar','jaw','jet',
+        'job','jog','joy','key','kid','kit','lab','lad','lag','lap','law','lay','led','leg','let','lid','lie','lip','list',
+        'log','lot','low','mad','man','map','mat','max','may','men','met','mix','mob','mom','mop','mud','mug','nap','net',
+        'new','nod','nor','not','now','nut','odd','off','oil','old','one','our','out','owl','own','pad','pan','pat','paw',
+        'pay','pen','pet','pig','pin','pit','pop','pot','pub','pup','put','ram','ran','rat','raw','red','rib','rid','rig',
+        'rim','rip','rob','rod','rot','rub','rug','run','sad','sag','sat','saw','say','set','sew','she','shy','sin','sip',
+        'sir','sit','six','sky','sly','sob','sod','son','sow','soy','spa','spy','sun','tab','tag','tan','tap','tax','tea',
+        'ten','the','tie','tin','tip','toe','top','toy','try','tub','tug','two','use','van','vat','vet','via','vow','wag',
+        'wan','war','was','wax','way','web','wet','who','why','win','wit','won','yak','yam','yes','yet','you','zag','zap',
+        'able','acid','aged','also','area','army','away','baby','back','bake','ball','band','bank','base','bath','bead',
+        'beam','bean','bear','beat','been','beer','bell','belt','bend','best','bike','bill','bird','bite','blue','boat',
+        'body','bold','bolt','bone','book','boom','boot','born','both','bowl','bulk','burn','bush','bust','busy','cage',
+        'cake','call','calm','came','camp','card','care','cart','case','cash','cast','cave','cell','chat','chin','city',
+        'clan','clap','claw','clay','clip','club','clue','coal','coat','code','coin','cold','come','cool','cope','copy',
+        'cord','core','corn','cost','crab','crew','crop','curb','curl','cute','dark','dart','dash','data','date','dawn',
+        'days','dead','deal','dear','debt','deck','deep','deer','dent','desk','dial','dice','diet','dime','dine','dirt',
+        'dish','dock','does','done','doom','door','dose','drag','draw','drop','drug','drum','duck','dull','dust','duty',
+        'each','earn','ease','east','easy','edge','fact','fade','fail','fair','fall','fame','farm','fast','fate','fear',
+        'feat','feed','feel','feet','fell','felt','file','fill','film','find','fine','fire','firm','fish','fist','five',
+        'flag','flat','flew','flex','flip','flow','foam','fold','folk','food','fool','foot','ford','form','fort','four',
+        'free','from','fuel','full','fund','gain','game','gang','gate','gave','gaze','gear','gift','girl','give','glad',
+        'goal','goat','gold','golf','gone','good','gulf','half','hall','halt','hand','hang','hard','harm','hate','have',
+        'hawk','hazy','head','heal','heap','hear','heat','held','hell','helm','help','herb','herd','here','hero','high',
+        'hill','hint','hire','hold','hole','holy','home','hood','hook','hope','horn','host','hour','huge','hulk','hunt',
+        'hurl','hurt','idea','idle','into','iron','item','jail','join','joke','jolt','jump','jury','just','keep','kick',
+        'kind','king','kiss','kite','knee','knew','knit','know','lace','lack','lady','lake','lamb','lamp','land','lane',
+        'last','late','lawn','lead','leaf','lean','leap','left','lend','lens','less','life','lift','like','lime','line',
+        'link','lion','list','live','load','loan','lock','logo','lone','long','look','loop','lord','lose','loss','lost',
+        'loud','love','luck','lung','made','mail','main','make','mall','many','mark','mask','mass','mast','meal','mean',
+        'meat','meet','melt','memo','mend','menu','mesh','mess','mice','mild','mile','milk','mind','mine','mint','miss',
+        'mist','mode','mold','mole','monk','mood','moon','more','moss','most','moth','move','much','must','myth','nail',
+        'name','navy','near','neat','neck','need','news','next','nice','nine','node','none','noon','norm','nose','note',
+        'noun','oath','odor','okay','once','only','onto','open','oral','over','pace','pack','page','pain','pair','pale',
+        'palm','park','part','pass','past','path','peak','pear','peer','pick','pier','pike','pile','pill','pine','pink',
+        'pipe','plan','play','plot','plow','plug','plum','pole','poll','pond','pool','poor','pork','port','pose','post',
+        'pour','pray','prey','pull','pump','pure','push','quiz','race','rack','rage','raid','rail','rain','rake','rank',
+        'rare','rate','read','real','reap','rear','rent','rest','rice','rich','ride','ring','rink','riot','ripe','rise',
+        'risk','road','roar','roast','robe','rock','role','roll','roof','room','root','rope','rose','rule','rush','rust',
+        'safe','sail','sake','sale','salt','same','sand','sang','sank','save','scan','seal','seam','seat','seed','seek',
+        'seem','seen','self','sell','send','sent','shed','ship','shoe','shop','shot','show','sick','side','sign','silk',
+        'sing','sink','site','size','skew','skin','skip','slam','slap','sled','slid','slim','slip','slow','snap','snow',
+        'soak','soap','soar','sock','soft','soil','sold','sole','solo','some','song','soon','sore','sort','soul','soup',
+        'spin','spot','stab','star','stay','stem','step','stir','stop','such','suit','sung','sunk','sure','swan','swim',
+        'tail','take','tale','talk','tall','tame','tank','tape','task','team','tear','tell','tend','tent','term','test',
+        'text','than','that','them','then','they','thin','this','tide','tidy','tile','till','time','tiny','told','toll',
+        'tone','took','tool','tour','town','trap','tray','tree','trim','trip','true','tuck','tune','turn','twin','type',
+        'unit','upon','urge','used','user','vain','vary','vast','veil','vein','verb','very','vest','view','vine','void',
+        'wage','wait','wake','walk','wall','want','ward','warm','warn','wash','wave','weak','wear','weed','week','well',
+        'went','were','west','what','when','whip','whom','wide','wife','wild','will','wind','wine','wing','wink','wire',
+        'wise','wish','with','wolf','wood','wool','word','wore','work','worm','worn','wrap','yard','yarn','year','your',
+        'zero','zone','above','adult','after','again','alarm','alert','alive','allow','alone','along','angel','anger',
+        'angle','ankle','apart','apple','apply','arena','argue','arise','armor','aside','asset','avoid','awake','award',
+        'aware','awful','badge','baker','basic','basis','beach','began','begin','being','below','bench','birth','black',
+        'blade','blame','blank','blast','blend','bless','blind','block','blood','board','boast','boost','booth','bored',
+        'boxer','brain','brake','brand','brave','bread','break','breed','brick','bride','brief','bring','broad','broke',
+        'brown','brush','build','burst','buyer','cabin','cable','canal','carry','carve','catch','cause','chain','chair',
+        'chalk','charm','chart','chase','cheap','check','cheek','chest','chief','child','chill','china','choir','choke',
+        'chord','chose','civil','claim','class','clean','clear','click','cliff','climb','cling','cloak','clock','close',
+        'cloth','cloud','clown','coach','coast','color','couch','could','count','court','cover','crack','craft','crash',
+        'crawl','crazy','cream','creek','crime','crisp','cross','crowd','crown','crude','cruel','crush','curve','cycle',
+        'daily','dance','dealt','death','debug','decay','delay','depth','dirty','disco','ditch','dodge','doing','doubt',
+        'dozen','draft','drain','drama','drank','drawn','dread','dream','dress','dried','drift','drill','drink','drive',
+        'drown','drunk','dwarf','eager','eagle','early','earth','eight','elbow','elder','elect','elite','empty',
+        'enjoy','enter','entry','equal','equip','error','essay','event','every','exact','exist','extra','fable','faint',
+        'faith','false','fault','favor','feast','fence','fever','fiber','field','fifth','fifty','fight','final','first',
+        'fixed','flame','flash','fleet','flesh','flick','fling','float','flock','flood','floor','flour','fluid','flush',
+        'focus','force','forge','forth','forty','forum','found','frame','fraud','fresh','front','frost','frown','fruit',
+        'fully','funny','giant','given','glare','glass','gleam','globe','glory','glove','goose','grace','grade','grand',
+        'grant','grape','graph','grasp','grass','grave','great','greed','green','greet','grief','grind','groom','group',
+        'grove','grown','guard','guess','guest','guide','guilt','habit','happy','harsh','haste','hatch','haven','heart',
+        'heavy','hedge','hence','herbs','hilly','hinge','hobby','hoist','honey','honor','horse','hotel','house','human',
+        'humor','hurry','ideal','image','imply','index','inner','input','inside','issue','ivory','jelly','jewel','joint',
+        'joker','judge','juice','known','label','labor','lance','large','laser','later','laugh','layer','learn','lease',
+        'least','leave','ledge','legal','lemon','level','light','limit','linen','liver','loans','lobby','local','locus',
+        'lodge','logic','loose','lorry','loser','lower','loyal','lucky','lunar','lunch','lying','magic','major','maker',
+        'march','marry','match','maybe','mayor','meant','medal','media','melon','mercy','merge','merit','metal','meter',
+        'might','minor','minus','mixed','model','moist','molar','money','month','moral','motor','mount','mouse','mouth',
+        'moved','music','naive','naked','naval','nerve','never','newly','ninth','noble','noise','north','novel','nurse',
+        'ocean','offer','often','onion','opera','orbit','order','organ','other','ought','outer','owner','oxide','ozone',
+        'panel','panic','paper','party','pasta','patch','pause','peace','pearl','phase','phone','photo','piano','piece',
+        'pilot','pitch','pizza','place','plain','plane','plant','plate','point','poker','polar','pound','power','press',
+        'price','pride','prime','print','prior','prize','proof','proud','prove','pulse','punch','pupil','purse','queen',
+        'query','quest','quick','quiet','quilt','quote','radar','radio','raise','ranch','range','rapid','ratio','reach',
+        'ready','realm','rebel','refer','reign','relax','reply','right','rigid','rival','river','roast','robot','rocky',
+        'rough','round','route','royal','rugby','ruler','rural','sadly','salad','sauce','scale','scarf','scary','scene',
+        'scope','score','scout','sense','serve','seven','shade','shake','shall','shame','shape','share','shark','sharp',
+        'shift','shine','shirt','shock','shoot','shore','short','shout','shown','sight','silly','since','sixty','skill',
+        'sleep','slice','slide','small','smart','smell','smile','smoke','snake','sneak','solar','solid','solve','sorry',
+        'sound','south','space','spare','speak','speed','spell','spend','spent','spice','spike','spine','split','spoil',
+        'spoke','sport','spray','squad','stack','staff','stage','stain','stake','stall','stamp','stand','stare','start',
+        'state','steak','steal','steam','steel','steep','stick','stiff','still','sting','stock','stone','stood','store',
+        'storm','story','stout','stove','study','stuff','style','sugar','sunny','super','sweep','sweet','swift','swing',
+        'sword','table','taken','taste','teach','tears','tenth','thank','their','theme','there','thick','thief','thing',
+        'think','third','those','three','throw','thumb','tiger','tight','timer','tired','title','today','token','tooth',
+        'topic','total','touch','tough','tower','trace','track','trade','trail','train','treat','trend','trial','tribe',
+        'trick','tried','tries','troop','truck','truly','trust','truth','tulip','tutor','twice','twist','ultra','uncle',
+        'under','union','unite','unity','until','upper','upset','urban','usage','usual','vague','valid','valley','value',
+        'vapor','video','virus','visit','vital','vivid','vocal','voice','voter','waist','waste','watch','water','weigh',
+        'whale','wheat','wheel','where','which','while','white','whole','whose','widen','width','windy','witch','woman',
+        'women','world','worry','worse','worst','worth','would','wound','wrist','write','wrong','yield','young','youth'
+    ];
 
     var KB_ROWS = [
         ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
@@ -694,7 +846,10 @@
             weakKeysManual: [],
             goalMinutes: 20,
             targetWpm: 25,
-            lastReviewAtUnlockedCount: 2
+            lastReviewAtUnlockedCount: 2,
+            keyboardVisible: true,
+            autoHideKeyboardLessons: 3,
+            lessonsSinceKeyboardShown: 0
         };
     }
 
@@ -771,8 +926,11 @@
         settingsDialog: document.getElementById('settingsDialog'),
         goalMinutesInput: document.getElementById('goalMinutesInput'),
         targetWpmInput: document.getElementById('targetWpmInput'),
+        autoHideInput: document.getElementById('autoHideInput'),
         resetProgressBtn: document.getElementById('resetProgressBtn'),
-        fullscreenBtn: document.getElementById('fullscreenBtn')
+        fullscreenBtn: document.getElementById('fullscreenBtn'),
+        keyboardVisibleToggle: document.getElementById('keyboardVisibleToggle'),
+        keyboardAutoHideHint: document.getElementById('keyboardAutoHideHint')
     };
 
     var keyBadgeEls = {};
@@ -884,6 +1042,34 @@
         return word;
     }
 
+    function eligibleRealWords(pool) {
+        var poolSet = new Set(pool);
+        return REAL_WORDS.filter(function (word) {
+            for (var i = 0; i < word.length; i++) {
+                if (!poolSet.has(word[i])) return false;
+            }
+            return true;
+        });
+    }
+
+    function scoreWord(word, weights) {
+        var score = 0;
+        for (var i = 0; i < word.length; i++) score += (weights[word[i]] || 0);
+        return score;
+    }
+
+    function weightedPickWord(words, weights) {
+        var scores = words.map(function (w) { return Math.max(0.01, scoreWord(w, weights)); });
+        var total = 0;
+        for (var i = 0; i < scores.length; i++) total += scores[i];
+        var r = Math.random() * total;
+        for (var j = 0; j < scores.length; j++) {
+            r -= scores[j];
+            if (r <= 0) return words[j];
+        }
+        return words[words.length - 1];
+    }
+
     function generateLessonWords(isReview) {
         var pool = KEY_ORDER.slice(0, state.unlockedCount);
         var weights;
@@ -894,7 +1080,12 @@
             weights = buildWeights(pool);
         }
         var words = [];
-        for (var i = 0; i < LESSON_WORD_COUNT; i++) words.push(generateWord(pool, weights));
+        var realCandidates = eligibleRealWords(pool);
+        if (realCandidates.length >= MIN_REAL_WORD_MATCHES) {
+            for (var i = 0; i < LESSON_WORD_COUNT; i++) words.push(weightedPickWord(realCandidates, weights));
+        } else {
+            for (var j = 0; j < LESSON_WORD_COUNT; j++) words.push(generateWord(pool, weights));
+        }
         return words;
     }
 
@@ -1119,6 +1310,19 @@
         el.dailyGoalText.textContent = Math.round(minutes) + ' / ' + state.goalMinutes + ' minutes';
     }
 
+    function renderKeyboardVisibility() {
+        el.keyboard.hidden = !state.keyboardVisible;
+        el.keyboardVisibleToggle.checked = state.keyboardVisible;
+        if (state.autoHideKeyboardLessons <= 0) {
+            el.keyboardAutoHideHint.textContent = '';
+        } else if (state.keyboardVisible) {
+            var remaining = Math.max(1, state.autoHideKeyboardLessons - state.lessonsSinceKeyboardShown);
+            el.keyboardAutoHideHint.textContent = 'auto-hides in ' + remaining + ' lesson' + (remaining === 1 ? '' : 's');
+        } else {
+            el.keyboardAutoHideHint.textContent = 'hidden — check the box to reveal';
+        }
+    }
+
     function renderAll() {
         renderMetricsBar();
         renderAllKeysRow();
@@ -1127,6 +1331,7 @@
         renderUnlockProgress();
         renderAccuracySentence();
         renderDailyGoal();
+        renderKeyboardVisibility();
     }
 
     function startTicking() {
@@ -1163,6 +1368,14 @@
         state.minutesToday += minutes;
         state.lessonsToday += 1;
         state.accuracySumToday += accuracy;
+
+        if (state.keyboardVisible && state.autoHideKeyboardLessons > 0) {
+            state.lessonsSinceKeyboardShown += 1;
+            if (state.lessonsSinceKeyboardShown >= state.autoHideKeyboardLessons) {
+                state.keyboardVisible = false;
+                state.lessonsSinceKeyboardShown = 0;
+            }
+        }
 
         persistState();
         renderAll();
@@ -1302,6 +1515,13 @@
         if (!anyDialogOpen()) el.hiddenInput.focus();
     });
 
+    el.keyboardVisibleToggle.addEventListener('change', function (e) {
+        state.keyboardVisible = e.target.checked;
+        if (state.keyboardVisible) state.lessonsSinceKeyboardShown = 0;
+        persistState();
+        renderKeyboardVisibility();
+    });
+
     el.helpBtn.addEventListener('click', function () { el.helpDialog.showModal(); });
     el.closeHelpBtn.addEventListener('click', function () { el.helpDialog.close(); });
     el.helpDialog.addEventListener('click', function (e) { if (e.target === el.helpDialog) el.helpDialog.close(); });
@@ -1310,13 +1530,17 @@
     el.settingsBtn.addEventListener('click', function () {
         el.goalMinutesInput.value = state.goalMinutes;
         el.targetWpmInput.value = state.targetWpm;
+        el.autoHideInput.value = state.autoHideKeyboardLessons;
         el.settingsDialog.showModal();
     });
     el.closeSettingsBtn.addEventListener('click', function () {
         var goal = clamp(parseInt(el.goalMinutesInput.value, 10) || state.goalMinutes, 1, 180);
         var target = clamp(parseInt(el.targetWpmInput.value, 10) || state.targetWpm, 5, 150);
+        var parsedAutoHide = parseInt(el.autoHideInput.value, 10);
+        var autoHide = clamp(isNaN(parsedAutoHide) ? state.autoHideKeyboardLessons : parsedAutoHide, 0, 20);
         state.goalMinutes = goal;
         state.targetWpm = target;
+        state.autoHideKeyboardLessons = autoHide;
         persistState();
         renderAll();
         el.settingsDialog.close();

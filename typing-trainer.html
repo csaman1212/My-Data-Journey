@@ -813,6 +813,23 @@
         'women','world','worry','worse','worst','worth','would','wound','wrist','write','wrong','yield','young','youth'
     ];
 
+    var PRIORITY_WORDS = [
+        'quantity','order','orders','shipment','shipments','part','parts','customer','customers','harness','harnesses',
+        'smart','stealthnet','solarnet','camera','cameras','sensor','sensors','shipping','quality','inspection',
+        'inspections','inventory','production','operations','approval','approvals','ecr','ecrs','material','materials',
+        'tracking','packing','pallet','pallets','manager','team','plc','receiver','receivers','tpms','cargovision',
+        'missing','slip','slips','numbers','deliveries','open','validation','incoming','stock','release','components',
+        'drawings','implementation','changes','schedules','overtime','areas','leadership','expectations','warehouse',
+        'supplier','suppliers','amazon','geotab','fleetpride','goodyear','nussbaum','transportation','unified',
+        'consulting','trailer','trailers','service','pratt','industries','wabash','national','corporation','mckinney',
+        'rentals','pearl','technologies','saia','transport','enterprise','leasing','radian','great','dane','trudell',
+        'tidewater','fleet','supply','xtra','ups'
+    ];
+
+    var PRIORITY_WORD_SET = new Set(PRIORITY_WORDS);
+    var PRIORITY_WORD_BOOST = 8;
+    var ALL_WORDS = REAL_WORDS.concat(PRIORITY_WORDS.filter(function (w) { return REAL_WORDS.indexOf(w) === -1; }));
+
     var KB_ROWS = [
         ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
         ['Tab','q','w','e','r','t','y','u','i','o','p','[',']'],
@@ -1044,7 +1061,7 @@
 
     function eligibleRealWords(pool) {
         var poolSet = new Set(pool);
-        return REAL_WORDS.filter(function (word) {
+        return ALL_WORDS.filter(function (word) {
             for (var i = 0; i < word.length; i++) {
                 if (!poolSet.has(word[i])) return false;
             }
@@ -1055,6 +1072,7 @@
     function scoreWord(word, weights) {
         var score = 0;
         for (var i = 0; i < word.length; i++) score += (weights[word[i]] || 0);
+        if (PRIORITY_WORD_SET.has(word)) score *= PRIORITY_WORD_BOOST;
         return score;
     }
 

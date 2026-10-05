@@ -186,7 +186,6 @@
     .key-badge.status-learning { background: var(--learning-bg); color: var(--learning-text); }
     .key-badge.status-weak { background: var(--weak-bg); color: var(--weak-text); }
     .key-badge.status-mastered { background: var(--mastered-bg); color: var(--mastered-text); }
-    .key-badge.is-focus { box-shadow: 0 0 0 2px var(--accent); }
 
     .current-key-row {
         display: flex;
@@ -1471,7 +1470,7 @@
         KEY_ORDER.forEach(function (letter, i) {
             var badge = keyBadgeEls[letter];
             var status = classifyKey(letter, i);
-            badge.className = 'key-badge status-' + status + (i === state.unlockedCount - 1 ? ' is-focus' : '');
+            badge.className = 'key-badge status-' + status;
         });
     }
 

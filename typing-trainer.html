@@ -704,6 +704,74 @@
     .btn.danger:hover { border-color: var(--negative); color: var(--negative); }
     .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     .btn.primary:hover { color: #fff; opacity: 0.9; }
+
+    .view-tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .view-tab-btn {
+        padding: 9px 4px;
+        margin-bottom: -1px;
+        font-size: 14px;
+        font-weight: 700;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--dim);
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+    .view-tab-btn:hover { color: var(--text); }
+    .view-tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .view-tab-btn[aria-selected="true"] {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+    }
+
+    .progress-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .progress-stat-label {
+        font-size: 12px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    .progress-stat-value {
+        font-size: 22px;
+        font-weight: 700;
+    }
+
+    .progress-chart-title {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .progress-chart-svg { width: 100%; height: auto; display: block; }
+
+    .progress-chart-empty {
+        font-size: 13px;
+        color: var(--dim);
+    }
+
+    .progress-chart-legend {
+        margin-top: 10px;
+        font-size: 12px;
+    }
+
+    .progress-chart-legend .legend-swatch { border-radius: 50%; }
 </style>
 </head>
 <body>
@@ -726,6 +794,12 @@
         </div>
     </div>
 
+    <div class="view-tabs" role="tablist" aria-label="View">
+        <button type="button" class="view-tab-btn" id="practiceTabBtn" role="tab" aria-selected="true" aria-controls="practiceView">Practice</button>
+        <button type="button" class="view-tab-btn" id="progressTabBtn" role="tab" aria-selected="false" aria-controls="progressView">Progress</button>
+    </div>
+
+    <div id="practiceView" role="tabpanel" aria-labelledby="practiceTabBtn">
     <div class="panel stage-roadmap">
         <div class="stage-roadmap-title">Course Progress</div>
         <div class="stage-stepper" id="stageStepper"></div>
@@ -812,6 +886,21 @@
                 <span class="legend-swatch tier-weak"></span><span>Weak</span>
                 <span class="legend-swatch legend-active"></span><span>Key to type now</span>
                 <span class="legend-swatch legend-selected"></span><span>Selected for drill</span>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div id="progressView" role="tabpanel" aria-labelledby="progressTabBtn" hidden>
+        <div class="panel">
+            <div class="progress-stats" id="progressStats"></div>
+            <div class="progress-chart-title">Speed &amp; accuracy over your lessons</div>
+            <div id="progressChartContainer"></div>
+            <div class="progress-chart-legend legend">
+                <span class="legend-group">
+                    <span class="legend-swatch" style="background:var(--accent);border-color:var(--accent);"></span><span>Speed (wpm)</span>
+                    <span class="legend-swatch" style="background:var(--accent-2);border-color:var(--accent-2);"></span><span>Accuracy (%)</span>
+                </span>
             </div>
         </div>
     </div>
@@ -1048,6 +1137,7 @@
             autoHideKeyboardLessons: 3,
             lessonsSinceKeyboardShown: 0,
             totalLessonsCompleted: 0,
+            totalMinutesPracticed: 0,
             lessonHistory: []
         };
     }
@@ -1134,7 +1224,13 @@
         resetProgressBtn: document.getElementById('resetProgressBtn'),
         fullscreenBtn: document.getElementById('fullscreenBtn'),
         keyboardVisibleToggle: document.getElementById('keyboardVisibleToggle'),
-        keyboardAutoHideHint: document.getElementById('keyboardAutoHideHint')
+        keyboardAutoHideHint: document.getElementById('keyboardAutoHideHint'),
+        practiceTabBtn: document.getElementById('practiceTabBtn'),
+        progressTabBtn: document.getElementById('progressTabBtn'),
+        practiceView: document.getElementById('practiceView'),
+        progressView: document.getElementById('progressView'),
+        progressStats: document.getElementById('progressStats'),
+        progressChartContainer: document.getElementById('progressChartContainer')
     };
 
     var keyBadgeEls = {};
@@ -1619,6 +1715,158 @@
         renderStageRoadmap();
         renderLessonNumber();
         renderHistoryList();
+        renderProgressView();
+    }
+
+    function formatMinutesPracticed(totalMinutes) {
+        var rounded = Math.round(totalMinutes);
+        if (rounded < 60) return rounded + ' min';
+        var hours = Math.floor(rounded / 60);
+        var mins = rounded % 60;
+        return hours + 'h ' + mins + 'm';
+    }
+
+    function addProgressStat(fragment, label, value) {
+        var stat = document.createElement('div');
+        var labelEl = document.createElement('div');
+        labelEl.className = 'progress-stat-label';
+        labelEl.textContent = label;
+        var valueEl = document.createElement('div');
+        valueEl.className = 'progress-stat-value';
+        valueEl.textContent = value;
+        stat.appendChild(labelEl);
+        stat.appendChild(valueEl);
+        fragment.appendChild(stat);
+    }
+
+    function renderProgressStats() {
+        var history = state.lessonHistory;
+        var avgAccuracy = history.length > 0
+            ? history.reduce(function (sum, e) { return sum + e.accuracy; }, 0) / history.length
+            : 0;
+
+        var fragment = document.createDocumentFragment();
+        addProgressStat(fragment, 'Lessons completed', String(state.totalLessonsCompleted));
+        addProgressStat(fragment, 'Time practiced', formatMinutesPracticed(state.totalMinutesPracticed));
+        addProgressStat(fragment, 'Top speed', state.topSpeedWpm.toFixed(1) + ' wpm');
+        addProgressStat(fragment, 'Avg accuracy', (history.length > 0 ? Math.round(avgAccuracy) : 100) + '%');
+
+        while (el.progressStats.firstChild) el.progressStats.removeChild(el.progressStats.firstChild);
+        el.progressStats.appendChild(fragment);
+    }
+
+    function renderProgressChart() {
+        var history = state.lessonHistory;
+        while (el.progressChartContainer.firstChild) el.progressChartContainer.removeChild(el.progressChartContainer.firstChild);
+
+        if (history.length < 2) {
+            var empty = document.createElement('p');
+            empty.className = 'progress-chart-empty';
+            empty.textContent = 'Complete a couple more lessons to see your trend chart here.';
+            el.progressChartContainer.appendChild(empty);
+            return;
+        }
+
+        var width = 600, height = 220, padL = 34, padR = 10, padT = 10, padB = 24;
+        var plotW = width - padL - padR;
+        var plotH = height - padT - padB;
+        var maxWpm = Math.max(5, Math.max.apply(null, history.map(function (e) { return e.wpm; })) * 1.15);
+
+        function xFor(i) { return padL + (i / (history.length - 1)) * plotW; }
+        function yForWpm(v) { return padT + plotH - (v / maxWpm) * plotH; }
+        function yForAcc(v) { return padT + plotH - (clamp(v, 0, 100) / 100) * plotH; }
+
+        var svgNS = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+        svg.setAttribute('class', 'progress-chart-svg');
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', 'Chart of speed and accuracy across your last ' + history.length +
+            ' lessons. Speed ranges from ' + Math.min.apply(null, history.map(function (e) { return e.wpm; })).toFixed(1) +
+            ' to ' + Math.max.apply(null, history.map(function (e) { return e.wpm; })).toFixed(1) +
+            ' words per minute. Accuracy ranges from ' + Math.round(Math.min.apply(null, history.map(function (e) { return e.accuracy; }))) +
+            '% to ' + Math.round(Math.max.apply(null, history.map(function (e) { return e.accuracy; }))) + '%.');
+
+        var axisColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#c3c6cd';
+        var dimColor = getComputedStyle(document.documentElement).getPropertyValue('--dim').trim() || '#64707d';
+        var accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2563eb';
+        var accent2Color = getComputedStyle(document.documentElement).getPropertyValue('--accent-2').trim() || '#7c3aed';
+
+        var axisLine = document.createElementNS(svgNS, 'line');
+        axisLine.setAttribute('x1', String(padL));
+        axisLine.setAttribute('y1', String(padT + plotH));
+        axisLine.setAttribute('x2', String(padL + plotW));
+        axisLine.setAttribute('y2', String(padT + plotH));
+        axisLine.setAttribute('stroke', axisColor);
+        axisLine.setAttribute('stroke-width', '1');
+        svg.appendChild(axisLine);
+
+        [0, 50, 100].forEach(function (pct) {
+            var y = yForAcc(pct);
+            var label = document.createElementNS(svgNS, 'text');
+            label.setAttribute('x', '2');
+            label.setAttribute('y', String(y + 3));
+            label.setAttribute('font-size', '9');
+            label.setAttribute('fill', dimColor);
+            label.textContent = pct + '%';
+            svg.appendChild(label);
+        });
+
+        function buildLine(valueFn, yFn, color) {
+            var points = history.map(function (entry, i) { return xFor(i) + ',' + yFn(valueFn(entry)); }).join(' ');
+            var polyline = document.createElementNS(svgNS, 'polyline');
+            polyline.setAttribute('points', points);
+            polyline.setAttribute('fill', 'none');
+            polyline.setAttribute('stroke', color);
+            polyline.setAttribute('stroke-width', '2');
+            polyline.setAttribute('stroke-linecap', 'round');
+            polyline.setAttribute('stroke-linejoin', 'round');
+            svg.appendChild(polyline);
+            history.forEach(function (entry, i) {
+                var dot = document.createElementNS(svgNS, 'circle');
+                dot.setAttribute('cx', String(xFor(i)));
+                dot.setAttribute('cy', String(yFn(valueFn(entry))));
+                dot.setAttribute('r', '2.5');
+                dot.setAttribute('fill', color);
+                svg.appendChild(dot);
+            });
+        }
+
+        buildLine(function (e) { return e.accuracy; }, yForAcc, accent2Color);
+        buildLine(function (e) { return e.wpm; }, yForWpm, accentColor);
+
+        var firstLabel = document.createElementNS(svgNS, 'text');
+        firstLabel.setAttribute('x', String(padL));
+        firstLabel.setAttribute('y', String(height - 6));
+        firstLabel.setAttribute('font-size', '9');
+        firstLabel.setAttribute('fill', dimColor);
+        firstLabel.textContent = 'Lesson ' + history[0].n;
+        svg.appendChild(firstLabel);
+
+        var lastLabel = document.createElementNS(svgNS, 'text');
+        lastLabel.setAttribute('x', String(padL + plotW));
+        lastLabel.setAttribute('y', String(height - 6));
+        lastLabel.setAttribute('font-size', '9');
+        lastLabel.setAttribute('fill', dimColor);
+        lastLabel.setAttribute('text-anchor', 'end');
+        lastLabel.textContent = 'Lesson ' + history[history.length - 1].n;
+        svg.appendChild(lastLabel);
+
+        el.progressChartContainer.appendChild(svg);
+    }
+
+    function renderProgressView() {
+        renderProgressStats();
+        renderProgressChart();
+    }
+
+    function setActiveView(view) {
+        var isProgress = view === 'progress';
+        el.practiceView.hidden = isProgress;
+        el.progressView.hidden = !isProgress;
+        el.practiceTabBtn.setAttribute('aria-selected', String(!isProgress));
+        el.progressTabBtn.setAttribute('aria-selected', String(isProgress));
+        if (isProgress) renderProgressView();
     }
 
     function startTicking() {
@@ -1653,6 +1901,7 @@
 
         ensureTodayFresh();
         state.minutesToday += minutes;
+        state.totalMinutesPracticed += minutes;
         state.lessonsToday += 1;
         state.accuracySumToday += accuracy;
 
@@ -1810,6 +2059,9 @@
 
     el.adaptiveModeBtn.addEventListener('click', function () { setMode('adaptive'); });
     el.weaknessModeBtn.addEventListener('click', function () { setMode('weakness'); });
+
+    el.practiceTabBtn.addEventListener('click', function () { setActiveView('practice'); });
+    el.progressTabBtn.addEventListener('click', function () { setActiveView('progress'); });
 
     el.textDisplay.addEventListener('click', function () { el.hiddenInput.focus(); });
     el.textDisplay.addEventListener('focus', function () { el.hiddenInput.focus(); });

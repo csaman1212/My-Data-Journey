@@ -279,6 +279,132 @@
         transition: width 0.3s ease;
     }
 
+    .stage-roadmap-title {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 14px;
+    }
+
+    .stage-stepper {
+        display: flex;
+        align-items: flex-start;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .stage-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        width: clamp(52px, 14vw, 72px);
+    }
+
+    .stage-circle {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-bg-2);
+        border: 2px solid var(--border);
+        color: var(--dim);
+        font-size: 12px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .stage-item.done .stage-circle { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .stage-item.current .stage-circle { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+    .stage-item.locked .stage-circle { opacity: 0.55; }
+
+    .stage-label {
+        font-size: 11px;
+        color: var(--dim);
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .stage-item.current .stage-label { color: var(--text); font-weight: 700; }
+
+    .stage-connector {
+        flex: 1 1 auto;
+        height: 3px;
+        background: var(--border);
+        margin-top: 14px;
+        min-width: 16px;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .stage-connector-fill {
+        height: 100%;
+        background: var(--accent);
+        width: 0%;
+    }
+
+    .lesson-number-label {
+        font-size: 12px;
+        color: var(--dim);
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .history-toggle {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+    .history-toggle-icon {
+        display: inline-block;
+        transition: transform 0.15s;
+        color: var(--dim);
+        font-size: 11px;
+    }
+
+    .history-toggle[aria-expanded="true"] .history-toggle-icon { transform: rotate(90deg); }
+
+    .history-list {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    .history-list[hidden] { display: none; }
+
+    .history-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 13px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: var(--panel-bg-2);
+    }
+
+    .history-item-stats { color: var(--dim); }
+
+    .history-empty {
+        font-size: 13px;
+        color: var(--dim);
+        margin-top: 12px;
+    }
+
     .mode-selector {
         display: flex;
         gap: 10px;
@@ -441,7 +567,10 @@
     button.kb-key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     button.kb-key:disabled { cursor: default; opacity: 0.5; }
 
-    .kb-key.is-active { background: var(--accent); color: #fff; }
+    .kb-key.tier-strong { background: var(--mastered-bg); color: var(--mastered-text); }
+    .kb-key.tier-watch { background: var(--learning-bg); color: var(--learning-text); }
+    .kb-key.tier-weak { background: var(--weak-bg); color: var(--weak-text); }
+    .kb-key.is-active { box-shadow: 0 0 0 3px var(--accent); }
     .kb-key.is-selected { box-shadow: 0 0 0 2px var(--accent-2) inset; }
     .kb-key.is-active.is-selected { box-shadow: 0 0 0 2px var(--accent-2) inset, 0 0 0 4px var(--accent); }
 
@@ -473,7 +602,23 @@
     .legend-swatch.status-learning { background: var(--learning-bg); border-color: var(--learning-bg); }
     .legend-swatch.status-weak { background: var(--weak-bg); border-color: var(--weak-bg); }
     .legend-swatch.status-mastered { background: var(--mastered-bg); border-color: var(--mastered-bg); }
-    .legend-swatch.legend-active { background: var(--accent); border-color: var(--accent); }
+    .legend-swatch.tier-strong { background: var(--mastered-bg); border-color: var(--mastered-bg); }
+    .legend-swatch.tier-watch { background: var(--learning-bg); border-color: var(--learning-bg); }
+    .legend-swatch.tier-weak { background: var(--weak-bg); border-color: var(--weak-bg); }
+    .legend-swatch.legend-active { box-shadow: 0 0 0 2px var(--accent); }
+
+    .legend-group-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .legend-group-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
     .legend-swatch.legend-selected { background: var(--panel-bg-2); box-shadow: 0 0 0 2px var(--accent-2) inset; }
 
     .kb-key.home-dot::after {
@@ -582,6 +727,11 @@
         </div>
     </div>
 
+    <div class="panel stage-roadmap">
+        <div class="stage-roadmap-title">Course Progress</div>
+        <div class="stage-stepper" id="stageStepper"></div>
+    </div>
+
     <div class="panel">
         <div class="metrics-row">
             <div class="metric"><span class="metric-label">Speed:</span><span class="metric-value" id="mSpeed">0wpm</span><span class="metric-delta" id="mSpeedDelta"></span></div>
@@ -610,12 +760,21 @@
         <div class="progress-bar"><div class="progress-fill" id="dailyGoalFill" style="width:0%"></div></div>
     </div>
 
+    <div class="panel history-panel">
+        <button type="button" class="history-toggle" id="historyToggleBtn" aria-expanded="false" aria-controls="historyList">
+            <span>Lesson History</span>
+            <span class="history-toggle-icon" id="historyToggleIcon" aria-hidden="true">&#9656;</span>
+        </button>
+        <div class="history-list" id="historyList" hidden></div>
+    </div>
+
     <div class="mode-selector" role="group" aria-label="Practice mode">
         <button type="button" class="mode-btn" id="adaptiveModeBtn" aria-pressed="true">Adaptive Lesson</button>
         <button type="button" class="mode-btn" id="weaknessModeBtn" aria-pressed="false">Weakness Drill</button>
     </div>
     <p class="weakness-hint" id="weaknessHint" hidden>Click letters on the keyboard below to focus your practice on them. Leave none selected to auto-target your weakest keys.</p>
 
+    <p class="lesson-number-label" id="lessonNumberLabel">Lesson 1</p>
     <p class="review-banner" id="reviewBanner" hidden>Review lesson — mixing everything you've unlocked so far to check retention.</p>
     <p class="review-result" id="reviewResult" hidden></p>
 
@@ -636,16 +795,25 @@
     <div class="panel keyboard" id="keyboard"></div>
 
     <div class="panel legend">
-        <div class="legend-group">
-            <span class="legend-swatch"></span><span>Not introduced</span>
-            <span class="legend-swatch status-new"></span><span>New</span>
-            <span class="legend-swatch status-learning"></span><span>Learning</span>
-            <span class="legend-swatch status-weak"></span><span>Weak</span>
-            <span class="legend-swatch status-mastered"></span><span>Mastered</span>
+        <div class="legend-group-block">
+            <div class="legend-group-title">All keys row</div>
+            <div class="legend-group">
+                <span class="legend-swatch"></span><span>Not introduced</span>
+                <span class="legend-swatch status-new"></span><span>New</span>
+                <span class="legend-swatch status-learning"></span><span>Learning</span>
+                <span class="legend-swatch status-weak"></span><span>Weak</span>
+                <span class="legend-swatch status-mastered"></span><span>Mastered</span>
+            </div>
         </div>
-        <div class="legend-group">
-            <span class="legend-swatch legend-active"></span><span>Key to type now</span>
-            <span class="legend-swatch legend-selected"></span><span>Selected for drill</span>
+        <div class="legend-group-block">
+            <div class="legend-group-title">Keyboard (relative to your own keys)</div>
+            <div class="legend-group">
+                <span class="legend-swatch tier-strong"></span><span>Strong</span>
+                <span class="legend-swatch tier-watch"></span><span>Watch</span>
+                <span class="legend-swatch tier-weak"></span><span>Weak</span>
+                <span class="legend-swatch legend-active"></span><span>Key to type now</span>
+                <span class="legend-swatch legend-selected"></span><span>Selected for drill</span>
+            </div>
         </div>
     </div>
 
@@ -660,11 +828,13 @@
             <li><strong>Adaptive Lesson:</strong> starts with a couple of keys and unlocks new ones automatically once you're fast and accurate on the current set.</li>
             <li><strong>Weakness Drill:</strong> click letters on the keyboard to build words concentrated on the keys you want to improve. Leave nothing selected and it auto-targets your weakest keys.</li>
             <li>Key colors in the "All keys" row: gray = not introduced, blue = new, yellow = still learning, red = weak, green = mastered.</li>
-            <li>The keyboard below only highlights the exact key you should press next; it doesn't repeat the mastery colors shown above.</li>
+            <li>Keyboard colors are relative to your own keys: green = strong, yellow = watch, red = weak. A blue ring marks the key to type right now; a purple ring marks keys selected for Weakness Drill.</li>
             <li>The progress bar under "Learning rate" shows how close your current key is to unlocking the next one.</li>
             <li>Every few unlocked keys, a review lesson mixes everything you've learned so far and tells you afterward if anything needs re-practice.</li>
             <li>Once enough real English words can be built from your unlocked keys, lessons switch from letter drills to complete words automatically.</li>
             <li>The "Keyboard reference" checkbox below the keyboard hides it to force memorization; by default it auto-hides after 3 lessons (adjustable, or turn it off, in Settings). Check the box anytime to bring it back.</li>
+            <li>The Course Progress bar at the top groups your unlocked keys into stages (Home Row, Index Reach, etc.) so you can see the bigger picture.</li>
+            <li>Lesson History (below the daily goal) lists your past lessons with their speed and accuracy.</li>
         </ul>
         <div class="dialog-actions"><button type="button" class="btn primary" id="closeHelpBtn">Got it</button></div>
     </div>
@@ -704,6 +874,17 @@
     var TARGET_ACCURACY_PCT = 90;
     var REVIEW_INTERVAL_UNLOCKS = 3;
     var MIN_REAL_WORD_MATCHES = 6;
+    var MAX_HISTORY_ENTRIES = 50;
+    var MIN_KEYS_FOR_TIERS = 3;
+
+    var STAGES = [
+        { name: 'Home Row', through: 9 },
+        { name: 'Index Reach', through: 13 },
+        { name: 'Middle Reach', through: 17 },
+        { name: 'Ring Reach', through: 21 },
+        { name: 'Pinky Reach', through: 25 },
+        { name: 'Final', through: 26 }
+    ];
 
     var REAL_WORDS = [
         'a','i','an','as','at','am','if','in','is','it','of','on','or','so','to','up','us','go','no','do','he','we','my',
@@ -866,7 +1047,9 @@
             lastReviewAtUnlockedCount: 2,
             keyboardVisible: true,
             autoHideKeyboardLessons: 3,
-            lessonsSinceKeyboardShown: 0
+            lessonsSinceKeyboardShown: 0,
+            totalLessonsCompleted: 0,
+            lessonHistory: []
         };
     }
 
@@ -880,6 +1063,7 @@
                     Object.assign(base, parsed);
                     base.keyStats = (parsed.keyStats && typeof parsed.keyStats === 'object') ? parsed.keyStats : {};
                     base.weakKeysManual = Array.isArray(parsed.weakKeysManual) ? parsed.weakKeysManual : [];
+                    base.lessonHistory = Array.isArray(parsed.lessonHistory) ? parsed.lessonHistory : [];
                     if (typeof parsed.lastReviewAtUnlockedCount !== 'number') base.lastReviewAtUnlockedCount = base.unlockedCount;
                 }
             }
@@ -914,6 +1098,10 @@
         topSpeed: document.getElementById('topSpeed'),
         learningRate: document.getElementById('learningRate'),
         trendDot: document.getElementById('trendDot'),
+        stageStepper: document.getElementById('stageStepper'),
+        lessonNumberLabel: document.getElementById('lessonNumberLabel'),
+        historyToggleBtn: document.getElementById('historyToggleBtn'),
+        historyList: document.getElementById('historyList'),
         unlockProgressText: document.getElementById('unlockProgressText'),
         unlockProgressFill: document.getElementById('unlockProgressFill'),
         reviewBanner: document.getElementById('reviewBanner'),
@@ -952,6 +1140,8 @@
 
     var keyBadgeEls = {};
     var keyButtonEls = {};
+    var stageItemEls = [];
+    var stageConnectorFillEls = [];
 
     var lesson = {
         words: [],
@@ -990,6 +1180,29 @@
         if (acc < 0.75 || spd < state.targetWpm * 0.6) return 'weak';
         if (acc >= TARGET_ACCURACY_PCT / 100 && spd >= state.targetWpm) return 'mastered';
         return 'learning';
+    }
+
+    function computeProficiencyTiers() {
+        var scored = [];
+        KEY_ORDER.forEach(function (letter, i) {
+            if (i >= state.unlockedCount) return;
+            var s = state.keyStats[letter];
+            if (!s || s.attempts === 0) return;
+            var acc = s.correct / s.attempts;
+            var spd = speedFromAvgMs(s.avgMs);
+            scored.push({ letter: letter, score: acc * spd });
+        });
+        var tiers = {};
+        if (scored.length < MIN_KEYS_FOR_TIERS) return tiers;
+        scored.sort(function (a, b) { return b.score - a.score; });
+        var n = scored.length;
+        scored.forEach(function (item, idx) {
+            var pct = idx / (n - 1);
+            if (pct <= 0.4) tiers[item.letter] = 'strong';
+            else if (pct >= 0.75) tiers[item.letter] = 'weak';
+            else tiers[item.letter] = 'watch';
+        });
+        return tiers;
     }
 
     function getWeakKeySet() {
@@ -1264,12 +1477,15 @@
 
     function renderKeyboardColors() {
         var nextChar = lesson.text[lesson.typed.length];
+        var tiers = computeProficiencyTiers();
         KEY_ORDER.forEach(function (letter, i) {
             var btn = keyButtonEls[letter];
             if (!btn) return;
             var selected = state.weakKeysManual.indexOf(letter) !== -1;
             var locked = i >= state.unlockedCount;
+            var tier = tiers[letter];
             btn.className = 'kb-key' +
+                (tier ? ' tier-' + tier : '') +
                 (letter === nextChar ? ' is-active' : '') +
                 (selected ? ' is-selected' : '') +
                 (letter === 'f' || letter === 'j' ? ' home-dot' : '');
@@ -1341,6 +1557,57 @@
         }
     }
 
+    function renderStageRoadmap() {
+        var currentIndex = -1;
+        for (var i = 0; i < STAGES.length; i++) {
+            if (state.unlockedCount < STAGES[i].through) { currentIndex = i; break; }
+        }
+        STAGES.forEach(function (stage, idx) {
+            var els = stageItemEls[idx];
+            var done = currentIndex === -1 || idx < currentIndex;
+            var isCurrent = idx === currentIndex;
+            els.item.className = 'stage-item ' + (done ? 'done' : (isCurrent ? 'current' : 'locked'));
+            els.circle.textContent = done ? '✓' : String(idx + 1);
+        });
+        for (var c = 0; c < stageConnectorFillEls.length; c++) {
+            var baseline = STAGES[c].through;
+            var target = STAGES[c + 1].through;
+            var progressed = clamp(state.unlockedCount - baseline, 0, target - baseline);
+            stageConnectorFillEls[c].style.width = (progressed / (target - baseline)) * 100 + '%';
+        }
+    }
+
+    function renderLessonNumber() {
+        el.lessonNumberLabel.textContent = 'Lesson ' + (state.totalLessonsCompleted + 1);
+    }
+
+    function renderHistoryList() {
+        while (el.historyList.firstChild) el.historyList.removeChild(el.historyList.firstChild);
+        if (state.lessonHistory.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'history-empty';
+            empty.textContent = 'Complete a lesson to see your history here.';
+            el.historyList.appendChild(empty);
+            return;
+        }
+        var fragment = document.createDocumentFragment();
+        for (var i = state.lessonHistory.length - 1; i >= 0; i--) {
+            var entry = state.lessonHistory[i];
+            var row = document.createElement('div');
+            row.className = 'history-item';
+            var label = document.createElement('span');
+            label.className = 'history-item-label';
+            label.textContent = 'Lesson ' + entry.n + (entry.isReview ? ' (Review)' : '');
+            var stats = document.createElement('span');
+            stats.className = 'history-item-stats';
+            stats.textContent = entry.wpm.toFixed(1) + ' wpm · ' + Math.round(entry.accuracy) + '% accuracy';
+            row.appendChild(label);
+            row.appendChild(stats);
+            fragment.appendChild(row);
+        }
+        el.historyList.appendChild(fragment);
+    }
+
     function renderAll() {
         renderMetricsBar();
         renderAllKeysRow();
@@ -1350,6 +1617,9 @@
         renderAccuracySentence();
         renderDailyGoal();
         renderKeyboardVisibility();
+        renderStageRoadmap();
+        renderLessonNumber();
+        renderHistoryList();
     }
 
     function startTicking() {
@@ -1394,6 +1664,10 @@
                 state.lessonsSinceKeyboardShown = 0;
             }
         }
+
+        state.totalLessonsCompleted += 1;
+        state.lessonHistory.push({ n: state.totalLessonsCompleted, wpm: wpm, accuracy: accuracy, isReview: wasReview });
+        if (state.lessonHistory.length > MAX_HISTORY_ENTRIES) state.lessonHistory.shift();
 
         persistState();
         renderAll();
@@ -1478,6 +1752,36 @@
         });
     }
 
+    function buildStageRoadmap() {
+        while (el.stageStepper.firstChild) el.stageStepper.removeChild(el.stageStepper.firstChild);
+        stageItemEls = [];
+        stageConnectorFillEls = [];
+        STAGES.forEach(function (stage, i) {
+            var item = document.createElement('div');
+            item.className = 'stage-item';
+            var circle = document.createElement('div');
+            circle.className = 'stage-circle';
+            circle.textContent = String(i + 1);
+            var label = document.createElement('div');
+            label.className = 'stage-label';
+            label.textContent = stage.name;
+            item.appendChild(circle);
+            item.appendChild(label);
+            el.stageStepper.appendChild(item);
+            stageItemEls.push({ item: item, circle: circle });
+
+            if (i < STAGES.length - 1) {
+                var connector = document.createElement('div');
+                connector.className = 'stage-connector';
+                var fill = document.createElement('div');
+                fill.className = 'stage-connector-fill';
+                connector.appendChild(fill);
+                el.stageStepper.appendChild(connector);
+                stageConnectorFillEls.push(fill);
+            }
+        });
+    }
+
     function toggleWeakKey(letter) {
         var idx = state.weakKeysManual.indexOf(letter);
         if (idx === -1) state.weakKeysManual.push(letter);
@@ -1540,6 +1844,12 @@
         renderKeyboardVisibility();
     });
 
+    el.historyToggleBtn.addEventListener('click', function () {
+        var expanded = el.historyToggleBtn.getAttribute('aria-expanded') === 'true';
+        el.historyToggleBtn.setAttribute('aria-expanded', String(!expanded));
+        el.historyList.hidden = expanded;
+    });
+
     el.helpBtn.addEventListener('click', function () { el.helpDialog.showModal(); });
     el.closeHelpBtn.addEventListener('click', function () { el.helpDialog.close(); });
     el.helpDialog.addEventListener('click', function (e) { if (e.target === el.helpDialog) el.helpDialog.close(); });
@@ -1572,6 +1882,8 @@
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* storage unavailable */ }
         state = defaultState();
         el.reviewResult.hidden = true;
+        el.historyList.hidden = true;
+        el.historyToggleBtn.setAttribute('aria-expanded', 'false');
         setMode(state.mode);
         buildAllKeysRow();
         renderKeyboardColors();
@@ -1593,6 +1905,7 @@
 
     buildAllKeysRow();
     buildKeyboard();
+    buildStageRoadmap();
     setMode(state.mode);
     startNewLesson();
     renderAll();

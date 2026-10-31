@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CalSouth Player Cards</title>
+<style>
+  :root {
+    --navy: #14284b;
+    --red: #c8102e;
+    --paper: #ffffff;
+    --bg: #eceff3;
+    --muted: #5b6575;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 1.5rem 1rem;
+    background: var(--bg);
+    color: #111;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; color: var(--navy); }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 1.5rem;
+    max-width: 62rem;
+    margin: 0 auto;
+  }
+  .card {
+    position: relative;
+    background: var(--paper);
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem 1.25rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+  }
+  .card::before {
+    content: "US YOUTH SOCCER";
+    position: absolute;
+    left: 1rem;
+    bottom: 0.5rem;
+    font-size: 3.2rem;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(20, 40, 75, 0.07);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 1.9rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--navy);
+  }
+  .brand .star { color: var(--red); font-size: 1.4rem; }
+  .brand .south { color: var(--navy); }
+  .brand .cal { color: var(--navy); }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .info { margin-top: 1rem; font-size: 0.85rem; line-height: 1.5; position: relative; }
+  .info .name { font-weight: 700; }
+  .team { margin-top: 0.9rem; font-size: 0.8rem; position: relative; }
+  .season { font-size: 1.05rem; font-weight: 700; text-align: right; margin-top: 0.4rem; position: relative; }
+  .age { font-size: 0.8rem; position: relative; margin-top: 0.4rem; }
+  .photo-wrap { width: 7rem; flex-shrink: 0; position: relative; }
+  .photo {
+    width: 7rem;
+    height: 8.2rem;
+    background: #d5dae1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: center;
+    overflow: hidden;
+  }
+  .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+    align-items: center;
+  }
+  .thumbs .thumb {
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 0.2rem;
+    background: #d5dae1;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .thumbs .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumbs .thumb[aria-pressed="true"] { border-color: var(--red); }
+  .thumbs .thumb:focus-visible, .add-btn:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+  .add-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 1px dashed var(--navy);
+    border-radius: 0.2rem;
+    background: #fff;
+    color: var(--navy);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .add-btn:hover { background: #e8edf5; }
+  .remove-btn {
+    margin-top: 0.4rem;
+    width: 100%;
+    padding: 0.2rem 0;
+    font-size: 0.7rem;
+    border: 1px solid var(--red);
+    background: #fff;
+    color: var(--red);
+    border-radius: 0.2rem;
+    cursor: pointer;
+  }
+  .remove-btn[hidden] { display: none; }
+  .msg { font-size: 0.7rem; color: var(--red); min-height: 1em; margin-top: 0.25rem; }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .add-btn, .remove-btn, .thumbs, .msg, h1 { display: none; }
+  }
+</style>
+</head>
+<body>
+<h1>CalSouth Player Cards</h1>
+<main class="cards">
+
+  <article class="card" aria-label="Adrian Muratalla player card">
+    <div class="top">
+      <div>
+        <div class="brand"><span class="cal">Cal</span><span class="star" aria-hidden="true">&#9733;</span><span class="south">South</span></div>
+        <div class="info">
+          <div class="name">Adrian Muratalla</div>
+          <div>72176-524119</div>
+          <div>02/12/2011</div>
+        </div>
+      </div>
+      <div class="photo-wrap">
+        <div class="photo" id="photo-adrian">Photo</div>
+      </div>
+    </div>
+    <div class="team">Team <strong>LBYSO Recreational - BU16-Samaniego</strong><br>0404-01RB16-8036</div>
+    <div class="season">2026-2027 Fall</div>
+    <div class="age">Age Group <strong>U16</strong></div>
+  </article>
+
+  <article class="card" aria-label="Xavi Robles player card">
+    <div class="top">
+      <div>
+        <div class="brand"><span class="cal">Cal</span><span class="star" aria-hidden="true">&#9733;</span><span class="south">South</span></div>
+        <div class="info">
+          <div class="name">Xavi Robles</div>
+          <div>10850-367947</div>
+          <div>08/10/2013</div>
+        </div>
+      </div>
+      <div class="photo-wrap">
+        <div class="photo" id="photo-xavi">No photo yet</div>
+        <div class="thumbs" id="thumbs-xavi">
+          <button type="button" class="add-btn" id="add-xavi" aria-label="Add another picture for Xavi Robles">+</button>
+        </div>
+        <button type="button" class="remove-btn" id="remove-xavi" hidden>Remove selected</button>
+        <div class="msg" id="msg-xavi" role="status" aria-live="polite"></div>
+        <label for="file-xavi" class="visually-hidden">Choose pictures for Xavi Robles</label>
+        <input type="file" id="file-xavi" class="visually-hidden" accept="image/*" multiple tabindex="-1">
+      </div>
+    </div>
+    <div class="team">Team <strong>LBYSO Recreational - BU16-Samaniego</strong><br>0404-01RB16-8036</div>
+    <div class="season">2026-2027 Fall</div>
+    <div class="age">Age Group <strong>U16</strong></div>
+  </article>
+
+</main>
+
+<script>
+(function () {
+  var photoEl = document.getElementById('photo-xavi');
+  var thumbsEl = document.getElementById('thumbs-xavi');
+  var addBtn = document.getElementById('add-xavi');
+  var removeBtn = document.getElementById('remove-xavi');
+  var fileInput = document.getElementById('file-xavi');
+  var msgEl = document.getElementById('msg-xavi');
+
+  var pictures = [];
+  var selected = -1;
+
+  function showMessage(text) {
+    msgEl.textContent = text;
+  }
+
+  function renderMain() {
+    photoEl.textContent = '';
+    if (selected < 0) {
+      photoEl.textContent = 'No photo yet';
+      return;
+    }
+    var img = document.createElement('img');
+    img.src = pictures[selected].url;
+    img.alt = 'Xavi Robles photo ' + (selected + 1) + ' of ' + pictures.length;
+    photoEl.appendChild(img);
+  }
+
+  function renderThumbs() {
+    var existing = thumbsEl.querySelectorAll('.thumb');
+    for (var i = 0; i < existing.length; i++) {
+      thumbsEl.removeChild(existing[i]);
+    }
+    pictures.forEach(function (pic, index) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'thumb';
+      btn.setAttribute('aria-label', 'Show picture ' + (index + 1));
+      btn.setAttribute('aria-pressed', index === selected ? 'true' : 'false');
+      var img = document.createElement('img');
+      img.src = pic.url;
+      img.alt = '';
+      btn.appendChild(img);
+      btn.addEventListener('click', function () {
+        selectPicture(index);
+      });
+      thumbsEl.insertBefore(btn, addBtn);
+    });
+    removeBtn.hidden = selected < 0;
+  }
+
+  function selectPicture(index) {
+    selected = index;
+    renderMain();
+    renderThumbs();
+  }
+
+  function addFiles(fileList) {
+    var rejected = 0;
+    Array.prototype.forEach.call(fileList, function (file) {
+      if (file.type.indexOf('image/') !== 0) {
+        rejected++;
+        return;
+      }
+      pictures.push({ url: URL.createObjectURL(file) });
+    });
+    showMessage(rejected > 0 ? rejected + ' file(s) skipped: images only.' : '');
+    if (pictures.length > 0) {
+      selectPicture(pictures.length - 1);
+    }
+  }
+
+  function removeSelected() {
+    if (selected < 0) {
+      return;
+    }
+    URL.revokeObjectURL(pictures[selected].url);
+    pictures.splice(selected, 1);
+    selectPicture(pictures.length === 0 ? -1 : Math.min(selected, pictures.length - 1));
+  }
+
+  addBtn.addEventListener('click', function () {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files && fileInput.files.length > 0) {
+      addFiles(fileInput.files);
+    }
+    fileInput.value = '';
+  });
+
+  removeBtn.addEventListener('click', removeSelected);
+})();
+</script>
+</body>
+</html>

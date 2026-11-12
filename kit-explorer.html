@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kit Explorer</title>
+<style>
+:root {
+  --bg: #f4f6f9; --surface: #ffffff; --text: #1b2430; --muted: #5b6878; --line: #dce2ea;
+  --accent: #0b6e8e; --accent-text: #ffffff; --accent-soft: #e2f1f6;
+  --ok: #17703f; --ok-bg: #e3f5eb; --bad: #a8261e; --bad-bg: #fcebea; --warn: #7d5200; --warn-bg: #fff2d1;
+  --cfg: #8892a0; --shadow: 0 1px 2px rgba(20, 30, 45, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161c; --surface: #1a212a; --text: #e5eaf1; --muted: #9aa7b8; --line: #2c3644;
+    --accent: #55bddc; --accent-text: #05212b; --accent-soft: #17323d;
+    --ok: #67d49a; --ok-bg: #153325; --bad: #ff8d84; --bad-bg: #3b1b19; --warn: #f2c35a; --warn-bg: #3a2e10;
+    --cfg: #7d8896; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1rem .5rem; max-width: 90rem; margin: 0 auto; }
+h1 { margin: 0; font-size: 1.4rem; }
+.sub { margin: 0; color: var(--muted); font-size: .9rem; }
+.pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: .35rem .85rem; font-size: .85rem; box-shadow: var(--shadow); }
+.pill.good { border-color: var(--ok); color: var(--ok); }
+.pill.attn { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+
+nav { display: flex; gap: .25rem; padding: 0 1rem; max-width: 90rem; margin: 0 auto; overflow-x: auto; border-bottom: 1px solid var(--line); }
+nav button { border: 0; background: none; padding: .65rem 1rem; border-bottom: 3px solid transparent; color: var(--muted); font-weight: 600; white-space: nowrap; }
+nav button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+main { max-width: 90rem; margin: 0 auto; padding: 1rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: .75rem; padding: 1rem; box-shadow: var(--shadow); margin-bottom: 1rem; }
+h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+h3 { margin: 1rem 0 .4rem; font-size: 1rem; }
+.hint { color: var(--muted); font-size: .9rem; margin: .25rem 0 .75rem; }
+.warnbox { background: var(--warn-bg); color: var(--warn); border-radius: .5rem; padding: .6rem .8rem; margin-bottom: 1rem; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+.toolbar label { font-weight: 600; }
+select, input[type="search"], input[type="text"], textarea { background: var(--surface); border: 1px solid var(--line); border-radius: .5rem; padding: .45rem .6rem; }
+textarea { width: 100%; min-height: 11rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: .5rem; padding: .45rem .8rem; font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.btn.danger { color: var(--bad); }
+.btn.small { padding: .2rem .55rem; font-size: .85rem; }
+.seg { display: inline-flex; }
+.seg button { border: 1px solid var(--line); background: var(--surface); padding: .45rem .8rem; font-weight: 600; }
+.seg button:first-child { border-radius: .5rem 0 0 .5rem; }
+.seg button:last-child { border-radius: 0 .5rem .5rem 0; border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem; margin-bottom: .8rem; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; padding: .6rem .8rem; }
+.stat b { display: block; font-size: 1.5rem; line-height: 1.1; }
+.stat span { color: var(--muted); font-size: .85rem; }
+
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: .75rem; }
+table { border-collapse: collapse; width: 100%; min-width: 46rem; }
+th, td { padding: .45rem .7rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { position: sticky; top: 0; background: var(--accent-soft); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.cfg td { color: var(--cfg); }
+.indent { display: flex; align-items: center; gap: .3rem; }
+.tog { border: 0; background: none; width: 1.6rem; height: 1.6rem; border-radius: .3rem; color: var(--accent); font-size: 1rem; }
+.tog:hover { background: var(--accent-soft); }
+.tog-sp { display: inline-block; width: 1.6rem; flex: none; }
+.link { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; text-align: left; white-space: nowrap; }
+.badge { display: inline-block; border-radius: 999px; padding: 0 .5rem; font-size: .75rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); margin-left: .3rem; white-space: nowrap; }
+.badge.rep { background: var(--warn-bg); color: var(--warn); }
+.badge.cfgb { background: var(--line); color: var(--muted); }
+.muted { color: var(--muted); }
+.thumbbtn { border: 1px solid var(--line); padding: 0; border-radius: .4rem; background: var(--surface); line-height: 0; }
+.thumb { width: 2.6rem; height: 2.6rem; object-fit: cover; border-radius: .35rem; }
+.empty { text-align: center; padding: 2rem 1rem; }
+
+.results { list-style: none; margin: .3rem 0 0; padding: 0; display: grid; gap: .3rem; max-width: 40rem; }
+.results button { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: .5rem; padding: .4rem .7rem; }
+.results button:hover { border-color: var(--accent); }
+.results b { margin-right: .5rem; }
+
+.check { border-radius: .6rem; padding: .7rem .9rem; margin: .5rem 0; }
+.check.ok { background: var(--ok-bg); color: var(--ok); }
+.check.bad { background: var(--bad-bg); color: var(--bad); }
+.check.warn { background: var(--warn-bg); color: var(--warn); }
+.check ul { margin: .3rem 0 0; padding-left: 1.2rem; color: var(--text); }
+.gallery { display: flex; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
+.shot { position: relative; }
+.shot .thumbbtn .thumb { width: 8rem; height: 8rem; }
+.shot .btn { position: absolute; top: .25rem; right: .25rem; background: var(--surface); }
+.dropzone { border: 2px dashed var(--line); border-radius: .6rem; padding: .8rem; text-align: center; color: var(--muted); }
+.dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+dialog { border: 0; border-radius: .75rem; padding: 1rem; max-width: 92vw; background: var(--surface); color: var(--text); }
+dialog::backdrop { background: rgba(0, 0, 0, .6); }
+dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .6rem; }
+#toast { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); background: var(--text); color: var(--bg); border-radius: .6rem; padding: .55rem 1rem; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); max-width: 90vw; }
+.formrow { display: grid; gap: .3rem; margin-bottom: .8rem; }
+.formrow input[type="text"] { max-width: 26rem; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Kit Explorer</h1>
+    <p class="sub">Kit parts, sub-parts, quantities and reference pictures from Epicor Method Tracker</p>
+  </div>
+  <button type="button" id="backupPill" class="pill">Backup: not connected</button>
+</header>
+
+<nav role="tablist" aria-label="Sections" id="tabs">
+  <button type="button" role="tab" id="tab-kits" aria-controls="panel-kits" aria-selected="true" data-tab="kits">Kits</button>
+  <button type="button" role="tab" id="tab-lookup" aria-controls="panel-lookup" aria-selected="false" tabindex="-1" data-tab="lookup">Part lookup</button>
+  <button type="button" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="false" tabindex="-1" data-tab="library">Add from Epicor</button>
+  <button type="button" role="tab" id="tab-backup" aria-controls="panel-backup" aria-selected="false" tabindex="-1" data-tab="backup">Backup</button>
+</nav>
+
+<main>
+  <div id="storageWarn" class="warnbox" role="alert" hidden>This browser is blocking local storage, so your data will be lost when you close the page. Use the Backup tab to save a file.</div>
+
+  <section id="panel-kits" role="tabpanel" aria-labelledby="tab-kits">
+    <div id="kitEmpty" class="card empty" hidden>
+      <h2>No kits yet</h2>
+      <p class="hint">Copy a Materials list from Epicor and paste it in the "Add from Epicor" tab, or load the K298 / K344 / K317 example to see how it works.</p>
+      <div class="actions" style="justify-content:center">
+        <button type="button" class="btn primary" id="emptyExample">Load example</button>
+        <button type="button" class="btn" id="emptyAdd">Add from Epicor</button>
+      </div>
+    </div>
+    <div id="kitContent" hidden>
+      <div class="toolbar">
+        <label for="kitSelect">Kit</label>
+        <select id="kitSelect"></select>
+        <label for="kitFilter" class="sr">Filter parts</label>
+        <input type="search" id="kitFilter" placeholder="Filter by part or description">
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" id="viewTree" aria-pressed="true">Tree</button>
+          <button type="button" id="viewFlat" aria-pressed="false">Flat totals</button>
+        </div>
+        <button type="button" class="btn" id="expandAll">Expand all</button>
+        <button type="button" class="btn" id="collapseAll">Collapse all</button>
+        <label><input type="checkbox" id="hideConfig"> Hide configuration items (type M)</label>
+      </div>
+      <div class="stats" id="kitStats"></div>
+      <div class="tablewrap">
+        <table>
+          <caption class="sr">Parts in the selected kit</caption>
+          <thead id="kitHead"></thead>
+          <tbody id="kitBody"></tbody>
+        </table>
+      </div>
+      <p id="kitNone" class="hint" hidden>Nothing matches your filter.</p>
+    </div>
+  </section>
+
+  <section id="panel-lookup" role="tabpanel" aria-labelledby="tab-lookup" hidden>
+    <div class="card">
+      <h2>Part lookup</h2>
+      <p class="hint">Type a part number or words from the description. Pick a part to see every kit that uses it, where inside the kit, the quantity, and its pictures.</p>
+      <div class="toolbar">
+        <label for="partSearch">Part</label>
+        <input type="search" id="partSearch" placeholder="e.g. 77-S108 or door sensor" autocomplete="off" size="34">
+      </div>
+      <ul class="results" id="partResults"></ul>
+    </div>
+    <div id="partDetail" class="card" hidden></div>
+  </section>
+
+  <section id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden>
+    <div class="card">
+      <h2>Add an assembly from Epicor</h2>
+      <ol class="hint">
+        <li>In Method Tracker click the assembly (the kit, a box, or a part with a little arrow) and open <b>Materials → List</b>.</li>
+        <li>Right-click the grid and choose <b>Copy All Include Labels</b>.</li>
+        <li>Type the assembly's part number below, paste into the box, and press <b>Save assembly</b>.</li>
+      </ol>
+      <form id="addForm" novalidate>
+        <div class="formrow">
+          <label for="asmName">Assembly part number (the one you clicked in Epicor)</label>
+          <input type="text" id="asmName" list="knownParts" placeholder="e.g. 77-K298 or 77-K298-BOX-1 or 77-S108" autocomplete="off">
+          <datalist id="knownParts"></datalist>
+        </div>
+        <div class="formrow">
+          <label for="asmPaste">Paste the Epicor list here</label>
+          <textarea id="asmPaste" spellcheck="false" placeholder="Mtl&#9;Part&#9;Description&#9;Qty/Parent&#9;Type ..."></textarea>
+        </div>
+        <p id="addPreview" class="hint" aria-live="polite"></p>
+        <div class="actions">
+          <button type="submit" class="btn primary">Save assembly</button>
+          <button type="button" class="btn" id="addClear">Clear</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Saved assemblies</h2>
+      <p class="hint">A part listed inside one assembly is linked automatically to the assembly of the same part number you saved. That is how sub-parts appear under their parent.</p>
+      <div class="tablewrap">
+        <table>
+          <caption class="sr">Saved assemblies</caption>
+          <thead><tr><th>Assembly</th><th class="num">Items</th><th>Used in</th><th>Saved</th><th>Actions</th></tr></thead>
+          <tbody id="libBody"></tbody>
+        </table>
+      </div>
+      <p id="libNone" class="hint" hidden>Nothing saved yet.</p>
+      <div class="actions" style="margin-top:.8rem">
+        <button type="button" class="btn" id="loadExample">Load K298 / K344 / K317 example</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-backup" role="tabpanel" aria-labelledby="tab-backup" hidden>
+    <div class="card">
+      <h2>Automatic backup to your OneDrive folder</h2>
+      <p class="hint">Your data is always saved in this browser. Connect a folder that lives inside OneDrive and every change is also written there as one file (<code>kit-explorer-backup.json</code>), including your pictures. OneDrive then syncs it. Works in Chrome and Edge.</p>
+      <p id="backupStatus" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="btnConnect">Choose backup folder</button>
+        <button type="button" class="btn" id="btnReconnect" hidden>Reconnect folder</button>
+        <button type="button" class="btn" id="btnBackupNow" hidden>Back up now</button>
+        <button type="button" class="btn danger" id="btnDisconnect" hidden>Disconnect</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Manual file backup</h2>
+      <p class="hint">Works in every browser. Download a copy, or restore from one. Restoring replaces what is currently in this browser.</p>
+      <div class="actions">
+        <button type="button" class="btn" id="btnExport">Download backup file</button>
+        <label class="btn" for="restoreInput" tabindex="0" id="restoreLabel">Restore from file…</label>
+        <input type="file" id="restoreInput" accept="application/json,.json" class="sr" tabindex="-1">
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="lightbox" aria-label="Picture">
+  <img id="lightboxImg" alt="">
+  <form method="dialog"><button type="submit" class="btn">Close</button></form>
+</dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<input type="file" id="imgInput" accept="image/*" multiple class="sr" tabindex="-1">
+
+<script>
+(function () {
+  'use strict';
+
+  var BACKUP_FILE = 'kit-explorer-backup.json';
+  var PREVIOUS_FILE = 'kit-explorer-backup-previous.json';
+  var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+  var EXAMPLE = {
+    '77-K298': [[10, '77-K298-BOX-1', 'BOX 1', 1, 'P'], [20, '77-K298-BOX-2', 'BOX 2', 1, 'P']],
+    '77-K298-BOX-1': [
+      [10, '205-1073-02', '77-7700 ATT, StealthNet using ATT SIM (Thailand) P1.2.1', 1, 'P'],
+      [15, '203-1068-00', 'Trailernet Shipmode Plug', 1, 'P'],
+      [16, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
+      [20, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
+      [30, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P'],
+      [40, '77-H135 192', 'GPS EXTENSION HARNESS MALE TO FEMALE BULLET DROPS .180, 192INCH', 1, 'P'],
+      [50, '77-IS57', '2x FUSE HOLDERS w/ M/F BULLETS, AND GROUND WIRE. NO LOCKING CLIP', 1, 'P'],
+      [60, '206-1019-01', 'HARNESS, TTMA M-F w/ 2x .180 F Drop (77-H390) FTE', 1, 'P'],
+      [70, '206-1034-00', 'HARNESS, EXT M-F BULLETS, DBL INSUL,16FT (77-H317-3 w/o CLIP)', 1, 'P'],
+      [80, '206-1016-00', 'MIDTURN JUMPER HARNESS ADAPTER (77-H317-1 w/o CLIP)', 1, 'P'],
+      [130, '77-IS29', 'Frame Clip Accessory Bag', 2, 'P'],
+      [140, '77-IS20', '25x zipties in baggy', 1, 'P'],
+      [160, '77-X012', 'X012 Configuration', 0, 'M'],
+      [170, '77-Y008', '77-Y008 Configuration', 0, 'M']
+    ],
+    '77-K298-BOX-2': [
+      [10, '77-S108', 'PCT Wireless Door Sensor (swing )', 1, 'P'],
+      [20, '205-1049-01', 'PCT CargoVision Camera, MJK 170 FOV, IR, EVE Battery Merlin P6.1.8', 1, 'P'],
+      [30, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
+      [40, '77-IS73', 'Door Sensor Screw Install Kit, 1-1/4" Bolts', 1, 'P'],
+      [60, '77-IS72', 'Alcohol Prep Pad', 1, 'P'],
+      [70, '77-IS63', 'Cargo Camera Installation Rivets', 1, 'P']
+    ],
+    '77-K344': [
+      [10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P'],
+      [20, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
+      [30, '203-1068-00', 'Trailernet Shipmode Plug', 1, 'P'],
+      [40, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
+      [50, '77-H287', 'Harness, Ext. M-F .180 Bullet, 60FT', 1, 'P'],
+      [60, '77-IS19', 'wire fuse holder, blue heat shrink butt connector and #10 ring terminal', 1, 'P'],
+      [70, '205-1049-01', 'PCT CargoVision Camera, MJK 170 FOV, IR, EVE Battery Merlin P6.1.8', 1, 'P'],
+      [80, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
+      [90, '205-1001-03', 'Door Sensor P3.9.2 (MJK - Vietnam)', 1, 'P'],
+      [100, '77-00207R', 'Door Sensor Magnet', 1, 'P'],
+      [110, '77-IS48', 'Door Sensor Screw Install Kit', 1, 'P'],
+      [120, '77-IS29', 'Frame Clip Accessory Bag', 1, 'P'],
+      [130, '77-IS20', '25x zipties in baggy', 1, 'P'],
+      [140, '77-X015', 'X015 Configuration', 0, 'M'],
+      [150, '77-Y000', '77-Y000 Configuration', 0, 'M']
+    ],
+    '77-K317': [
+      [10, '77-7700', 'StealthNet CAN', 1, 'P'],
+      [20, '77-H371', 'CN-LINKO 3 WIRE POWER HARNESS w/ CAN + RS485', 1, 'P'],
+      [30, '77-S227', 'PLC Reader, Semitech, RS485', 1, 'P'],
+      [40, '77-H287', 'Harness, Ext. M-F .180 Bullet, 60FT', 1, 'P'],
+      [50, '77-IS19', 'wire fuse holder, blue heat shrink butt connector and #10 ring terminal', 1, 'P'],
+      [60, '77-H183', 'DX Y-Splitter, 1M-2F', 1, 'P'],
+      [70, '77-C152', 'DX 120 Ohm Termination Plug', 1, 'P'],
+      [80, '77-H306 274', 'Harness, 274", 53FT Trailer, Rear Power Drop, w/ DX Termination Plug', 1, 'P'],
+      [90, '77-H306', 'Harness, 28FT Trailer, Rear Power Drop, w/ DX Termination Plug', 1, 'P'],
+      [100, '77-S269', 'PCT Puck Camera, Road Side, IR Light, P6.1.7 Camera Board', 1, 'P'],
+      [110, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
+      [120, '77-S108', 'PCT Wireless Door Sensor (swing )', 1, 'P'],
+      [130, '77-IS73', 'Door Sensor Screw Install Kit, 1-1/4" Bolts', 1, 'P'],
+      [140, '77-X012', 'X012 Configuration', 0, 'M'],
+      [150, '77-Y113', '77-Y113 Configuration', 0, 'M'],
+      [160, '77-XS006', '77-XS006 Configuration', 0, 'M']
+    ],
+    '77-S108': [[10, '205-1001-03', 'Door Sensor P3.9.2 (MJK - Vietnam)', 1, 'P']],
+    '77-7700': [[10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P']],
+    '77-S227': [[10, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P']],
+    '77-S269': [[10, '205-1072-00', 'PCT Puck Camera, Road Side, IR Light, P6.1.7 Camera Board', 1, 'P']]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    tabs: $('tabs'), backupPill: $('backupPill'), storageWarn: $('storageWarn'),
+    kitEmpty: $('kitEmpty'), kitContent: $('kitContent'), kitSelect: $('kitSelect'), kitFilter: $('kitFilter'),
+    viewTree: $('viewTree'), viewFlat: $('viewFlat'), expandAll: $('expandAll'), collapseAll: $('collapseAll'),
+    hideConfig: $('hideConfig'), kitStats: $('kitStats'), kitHead: $('kitHead'), kitBody: $('kitBody'), kitNone: $('kitNone'),
+    emptyExample: $('emptyExample'), emptyAdd: $('emptyAdd'),
+    partSearch: $('partSearch'), partResults: $('partResults'), partDetail: $('partDetail'),
+    addForm: $('addForm'), asmName: $('asmName'), asmPaste: $('asmPaste'), addPreview: $('addPreview'), addClear: $('addClear'),
+    knownParts: $('knownParts'), libBody: $('libBody'), libNone: $('libNone'), loadExample: $('loadExample'),
+    backupStatus: $('backupStatus'), btnConnect: $('btnConnect'), btnReconnect: $('btnReconnect'),
+    btnBackupNow: $('btnBackupNow'), btnDisconnect: $('btnDisconnect'), btnExport: $('btnExport'),
+    restoreInput: $('restoreInput'), restoreLabel: $('restoreLabel'),
+    lightbox: $('lightbox'), lightboxImg: $('lightboxImg'), toast: $('toast'), imgInput: $('imgInput')
+  };
+  var tabNames = ['kits', 'lookup', 'library', 'backup'];
+
+  var state = {
+    assemblies: {}, images: {}, kit: '', checkKit: '', view: 'tree', tab: 'kits',
+    selectedPart: '', expanded: new Map()
+  };
+  var model = null;
+  var backup = { handle: null, permission: 'none', savedAt: null, error: '' };
+  var saveTimer = 0;
+  var toastTimer = 0;
+  var pendingImagePart = '';
+
+  /* ---------- helpers ---------- */
+  function h(tag, attrs) {
+    var e = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        var v = attrs[k];
+        if (v === null || v === undefined || v === false) { return; }
+        if (k === 'class') { e.className = v; }
+        else if (k.indexOf('on') === 0) { e.addEventListener(k.slice(2), v); }
+        else { e.setAttribute(k, v === true ? '' : v); }
+      });
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var kid = arguments[i];
+      if (kid === null || kid === undefined || kid === false) { continue; }
+      e.appendChild(typeof kid === 'object' ? kid : document.createTextNode(String(kid)));
+    }
+    return e;
+  }
+  function normPart(s) { return String(s === null || s === undefined ? '' : s).replace(/\s+/g, ' ').trim().toUpperCase(); }
+  function round6(n) { return Math.round(n * 1e6) / 1e6; }
+  function fmt(n) { return String(parseFloat(Number(n).toFixed(4))); }
+  function toast(msg) {
+    els.toast.textContent = msg;
+    els.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { els.toast.hidden = true; }, 3200);
+  }
+  function timeText(iso) {
+    var d = iso ? new Date(iso) : null;
+    return d && !isNaN(d.getTime()) ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  }
+  function clock(d) { return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+  /* ---------- storage (IndexedDB) ---------- */
+  var idb = {
+    db: null, ok: false,
+    open: function () {
+      var self = this;
+      return new Promise(function (resolve) {
+        try {
+          var rq = indexedDB.open('kitExplorer', 1);
+          rq.onupgradeneeded = function () { rq.result.createObjectStore('kv'); };
+          rq.onsuccess = function () { self.db = rq.result; self.ok = true; resolve(true); };
+          rq.onerror = function () { resolve(false); };
+          rq.onblocked = function () { resolve(false); };
+        } catch (e) { resolve(false); }
+      });
+    },
+    get: function (key) {
+      var self = this;
+      return new Promise(function (resolve) {
+        if (!self.ok) { resolve(undefined); return; }
+        try {
+          var rq = self.db.transaction('kv').objectStore('kv').get(key);
+          rq.onsuccess = function () { resolve(rq.result); };
+          rq.onerror = function () { resolve(undefined); };
+        } catch (e) { resolve(undefined); }
+      });
+    },
+    set: function (key, value) {
+      var self = this;
+      return new Promise(function (resolve) {
+        if (!self.ok) { resolve(false); return; }
+        try {
+          var tx = self.db.transaction('kv', 'readwrite');
+          tx.objectStore('kv').put(value, key);
+          tx.oncomplete = function () { resolve(true); };
+          tx.onerror = function () { resolve(false); };
+          tx.onabort = function () { resolve(false); };
+        } catch (e) { resolve(false); }
+      });
+    }
+  };
+
+  function sanitizeAssemblies(obj) {
+    var out = {};
+    if (!obj || typeof obj !== 'object') { return out; }
+    Object.keys(obj).forEach(function (rawName) {
+      var name = normPart(rawName);
+      var src = obj[rawName];
+      if (!name || !src || !Array.isArray(src.items)) { return; }
+      var items = [];
+      src.items.forEach(function (it) {
+        var part = normPart(it && it.part);
+        var qty = Number(it && it.qty);
+        if (!part) { return; }
+        items.push({
+          mtl: it.mtl === null || it.mtl === undefined || isNaN(Number(it.mtl)) ? null : Number(it.mtl),
+          part: part, desc: String(it.desc || ''), qty: isFinite(qty) ? qty : 1,
+          type: String(it.type || '').charAt(0).toUpperCase()
+        });
+      });
+      out[name] = { items: items, updated: typeof src.updated === 'string' ? src.updated : '' };
+    });
+    return out;
+  }
+  function sanitizeImages(obj) {
+    var out = {};
+    if (!obj || typeof obj !== 'object') { return out; }
+    Object.keys(obj).forEach(function (rawPart) {
+      var part = normPart(rawPart);
+      if (!part || !Array.isArray(obj[rawPart])) { return; }
+      var list = obj[rawPart].filter(function (u) { return typeof u === 'string' && u.indexOf('data:image/') === 0; });
+      if (list.length) { out[part] = list; }
+    });
+    return out;
+  }
+
+  /* ---------- parsing the Epicor paste ---------- */
+  function parseTable(text) {
+    var rows = [], row = [], cell = '', inQuote = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (inQuote) {
+        if (c === '"') {
+          if (text.charAt(i + 1) === '"') { cell += '"'; i++; } else { inQuote = false; }
+        } else { cell += c; }
+      } else if (c === '"' && cell === '') { inQuote = true; }
+      else if (c === '\t') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text.charAt(i + 1) === '\n') { i++; }
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else { cell += c; }
+    }
+    row.push(cell);
+    rows.push(row);
+    return rows.filter(function (r) { return r.some(function (x) { return x.trim() !== ''; }); });
+  }
+  function parseItems(text) {
+    var res = { items: [], skipped: 0, defaultedQty: 0 };
+    var rows = parseTable(text);
+    if (!rows.length) { return res; }
+    var head = rows[0].map(function (c) { return c.trim().toLowerCase(); });
+    var map, start = 0;
+    var qtyCol = -1;
+    head.forEach(function (c, i) { if (qtyCol < 0 && c.indexOf('qty') === 0) { qtyCol = i; } });
+    if (head.indexOf('part') > -1 && qtyCol > -1) {
+      map = { mtl: head.indexOf('mtl'), part: head.indexOf('part'), desc: head.indexOf('description'), qty: qtyCol, type: head.indexOf('type') };
+      start = 1;
+    } else if (/^\d+$/.test((rows[0][0] || '').trim())) {
+      map = { mtl: 0, part: 1, desc: 2, qty: 3, type: 4 };
+    } else {
+      map = { mtl: -1, part: 0, desc: 1, qty: 2, type: 3 };
+    }
+    for (var r = start; r < rows.length; r++) {
+      var row = rows[r];
+      var get = function (i) { return i >= 0 && i < row.length ? row[i].replace(/\s+/g, ' ').trim() : ''; };
+      var part = normPart(get(map.part));
+      if (!part) { res.skipped++; continue; }
+      var qty = parseFloat(get(map.qty).replace(/,/g, ''));
+      if (!isFinite(qty)) { qty = 1; res.defaultedQty++; }
+      var mtl = parseInt(get(map.mtl), 10);
+      res.items.push({ mtl: isNaN(mtl) ? null : mtl, part: part, desc: get(map.desc), qty: qty, type: get(map.type).charAt(0).toUpperCase() });
+    }
+    res.items.sort(function (a, b) { return (a.mtl === null ? 1e9 : a.mtl) - (b.mtl === null ? 1e9 : b.mtl); });
+    return res;
+  }
+
+  /* ---------- model ---------- */
+  function rebuild() {
+    var A = state.assemblies;
+    var names = Object.keys(A);
+    var desc = new Map(), parentsOf = new Map();
+    names.forEach(function (name) {
+      A[name].items.forEach(function (it) {
+        if (it.desc && !desc.has(it.part)) { desc.set(it.part, it.desc); }
+        if (!parentsOf.has(it.part)) { parentsOf.set(it.part, new Set()); }
+        parentsOf.get(it.part).add(name);
+      });
+    });
+    var roots = names.filter(function (n) { return !parentsOf.has(n); }).sort(collator.compare);
+    if (!roots.length) { roots = names.slice().sort(collator.compare); }
+    model = { desc: desc, parentsOf: parentsOf, roots: roots, flatCache: new Map(), usage: new Map(), aliases: new Map() };
+    roots.forEach(function (root) {
+      flatten(root).forEach(function (entry, part) {
+        if (!model.usage.has(part)) { model.usage.set(part, []); }
+        model.usage.get(part).push({ kit: root, total: entry.total, places: entry.places });
+      });
+    });
+    buildAliases(names, roots);
+    if (!A[state.kit]) { state.kit = roots[0] || ''; }
+    if (!A[state.checkKit]) { state.checkKit = state.kit; }
+  }
+  function flatten(name) {
+    if (model.flatCache.has(name)) { return model.flatCache.get(name); }
+    var out = new Map();
+    var A = state.assemblies;
+    var walk = function (asm, mult, trail, stack) {
+      A[asm].items.forEach(function (it) {
+        var total = round6(mult * it.qty);
+        var entry = out.get(it.part);
+        if (!entry) { entry = { total: 0, places: [] }; out.set(it.part, entry); }
+        entry.total = round6(entry.total + total);
+        entry.places.push({ trail: trail.slice(), qty: it.qty, total: total, type: it.type });
+        if (A[it.part] && !stack.has(it.part)) {
+          stack.add(it.part); trail.push(it.part);
+          walk(it.part, total, trail, stack);
+          trail.pop(); stack.delete(it.part);
+        }
+      });
+    };
+    if (A[name]) { walk(name, 1, [], new Set([name])); }
+    model.flatCache.set(name, out);
+    return out;
+  }
+  function buildAliases(names, roots) {
+    var adj = new Map();
+    var link = function (a, b) {
+      if (!adj.has(a)) { adj.set(a, new Set()); }
+      if (!adj.has(b)) { adj.set(b, new Set()); }
+      adj.get(a).add(b); adj.get(b).add(a);
+    };
+    names.forEach(function (name) {
+      if (roots.indexOf(name) > -1) { return; }
+      var real = state.assemblies[name].items.filter(function (it) { return it.type !== 'M' && it.qty > 0; });
+      if (real.length === 1 && real[0].qty === 1 && real[0].part !== name) { link(name, real[0].part); }
+    });
+    adj.forEach(function (_, start) {
+      if (model.aliases.has(start)) { return; }
+      var group = [], queue = [start], seen = new Set([start]);
+      while (queue.length) {
+        var cur = queue.shift();
+        group.push(cur);
+        adj.get(cur).forEach(function (n) { if (!seen.has(n)) { seen.add(n); queue.push(n); } });
+      }
+      group.forEach(function (p) { model.aliases.set(p, group.filter(function (g) { return g !== p; })); });
+    });
+  }
+  function aliasesOf(part) { return model.aliases.get(part) || []; }
+  function buildTree(name) {
+    var A = state.assemblies;
+    var out = [];
+    var walk = function (asm, mult, depth, prefix, stack, list) {
+      A[asm].items.forEach(function (it, idx) {
+        var total = round6(mult * it.qty);
+        var id = prefix + '/' + idx;
+        var isAsm = !!A[it.part];
+        var node = {
+          id: id, part: it.part, desc: it.desc || model.desc.get(it.part) || '', qty: it.qty, total: total,
+          type: it.type, depth: depth, isAsm: isAsm, loop: false, children: []
+        };
+        if (isAsm) {
+          if (stack.has(it.part)) { node.loop = true; }
+          else { stack.add(it.part); walk(it.part, total, depth + 1, id, stack, node.children); stack.delete(it.part); }
+        }
+        list.push(node);
+      });
+    };
+    walk(name, 1, 0, name, new Set([name]), out);
+    return out;
+  }
+  function allParts() {
+    var set = new Set(Object.keys(state.assemblies));
+    model.parentsOf.forEach(function (_, part) { set.add(part); });
+    return Array.from(set).sort(collator.compare);
+  }
+  function descOf(part) { return model.desc.get(part) || ''; }
+  function placeText(p) { return p.trail.length ? p.trail.join(' › ') : 'Directly in the kit'; }
+
+  /* ---------- persistence + backup ---------- */
+  function changed() {
+    rebuild();
+    renderAll();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistAll, 900);
+  }
+  function backupPayload() {
+    return { app: 'kit-explorer', version: 1, savedAt: new Date().toISOString(), assemblies: state.assemblies, images: state.images };
+  }
+  async function persistAll() {
+    await idb.set('assemblies', state.assemblies);
+    await idb.set('images', state.images);
+    if (backup.handle) {
+      try {
+        backup.permission = await backup.handle.queryPermission({ mode: 'readwrite' });
+        if (backup.permission === 'granted') { await writeBackup(); }
+      } catch (e) { backup.error = 'Could not write to the folder.'; }
+      renderBackup();
+    }
+  }
+  async function writeBackup() {
+    try {
+      var fh = await backup.handle.getFileHandle(BACKUP_FILE, { create: true });
+      var w = await fh.createWritable();
+      await w.write(JSON.stringify(backupPayload()));
+      await w.close();
+      backup.savedAt = new Date();
+      backup.error = '';
+    } catch (e) {
+      backup.error = 'Could not write to the folder. Reconnect it and try again.';
+    }
+  }
+  async function readFolderBackup(handle) {
+    try {
+      var fh = await handle.getFileHandle(BACKUP_FILE);
+      var file = await fh.getFile();
+      return { text: await file.text(), modified: file.lastModified };
+    } catch (e) { return null; }
+  }
+  function applyBackup(data) {
+    if (!data || typeof data !== 'object' || !data.assemblies) { return false; }
+    state.assemblies = sanitizeAssemblies(data.assemblies);
+    state.images = sanitizeImages(data.images);
+    state.expanded = new Map();
+    return true;
+  }
+  async function connectFolder() {
+    if (typeof window.showDirectoryPicker !== 'function') {
+      toast('This browser cannot connect a folder. Use Chrome or Edge, or the manual file backup.');
+      return;
+    }
+    var handle;
+    try { handle = await window.showDirectoryPicker({ mode: 'readwrite' }); }
+    catch (e) { return; }
+    var found = await readFolderBackup(handle);
+    if (found) {
+      var parsed = null;
+      try { parsed = JSON.parse(found.text); } catch (e) { parsed = null; }
+      var count = parsed && parsed.assemblies ? Object.keys(parsed.assemblies).length : 0;
+      if (count && window.confirm('This folder already has a backup with ' + count + ' assemblies (saved ' + timeText(parsed.savedAt) +
+        ').\n\nOK = load it (replaces what is in this browser).\nCancel = keep this browser\'s data and replace the folder backup (the old one is kept as ' + PREVIOUS_FILE + ').')) {
+        applyBackup(parsed);
+        backup.handle = handle;
+        backup.permission = 'granted';
+        await idb.set('dir', handle);
+        rebuild(); renderAll();
+        await persistAll();
+        toast('Loaded the backup from ' + handle.name);
+        return;
+      }
+      try {
+        var prev = await handle.getFileHandle(PREVIOUS_FILE, { create: true });
+        var pw = await prev.createWritable();
+        await pw.write(found.text);
+        await pw.close();
+      } catch (e) { backup.error = 'Could not keep a copy of the old backup.'; }
+    }
+    backup.handle = handle;
+    backup.permission = 'granted';
+    await idb.set('dir', handle);
+    await idb.set('assemblies', state.assemblies);
+    await idb.set('images', state.images);
+    await writeBackup();
+    renderBackup();
+    toast(backup.error || 'Backup folder connected: ' + handle.name);
+  }
+  async function reconnectFolder() {
+    if (!backup.handle) { return; }
+    try { backup.permission = await backup.handle.requestPermission({ mode: 'readwrite' }); }
+    catch (e) { backup.permission = 'prompt'; }
+    if (backup.permission === 'granted') { await writeBackup(); }
+    renderBackup();
+  }
+  async function disconnectFolder() {
+    backup.handle = null; backup.permission = 'none'; backup.savedAt = null; backup.error = '';
+    await idb.set('dir', null);
+    renderBackup();
+    toast('Backup folder disconnected. Data stays in this browser.');
+  }
+  function exportFile() {
+    var blob = new Blob([JSON.stringify(backupPayload())], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = h('a', { href: url, download: BACKUP_FILE });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  function restoreFromFile(file) {
+    if (!file) { return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed = null;
+      try { parsed = JSON.parse(String(reader.result)); } catch (e) { parsed = null; }
+      if (!parsed || !parsed.assemblies) { toast('That file is not a Kit Explorer backup.'); return; }
+      var count = Object.keys(parsed.assemblies).length;
+      if (!window.confirm('Replace everything in this browser with the backup (' + count + ' assemblies)?')) { return; }
+      applyBackup(parsed);
+      changed();
+      toast('Backup restored.');
+    };
+    reader.onerror = function () { toast('Could not read that file.'); };
+    reader.readAsText(file);
+  }
+
+  /* ---------- pictures ---------- */
+  function fileToDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, 900 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('unreadable')); };
+      img.src = url;
+    });
+  }
+  async function addImages(part, files) {
+    var added = 0;
+    for (var i = 0; i < files.length; i++) {
+      try {
+        var url = await fileToDataUrl(files[i]);
+        if (!state.images[part]) { state.images[part] = []; }
+        state.images[part].push(url);
+        added++;
+      } catch (e) { toast('One file could not be read as a picture.'); }
+    }
+    if (added) { toast(added + ' picture' + (added > 1 ? 's' : '') + ' added to ' + part); changed(); }
+  }
+  function removeImage(part, index) {
+    if (!state.images[part]) { return; }
+    state.images[part].splice(index, 1);
+    if (!state.images[part].length) { delete state.images[part]; }
+    changed();
+  }
+  function openLightbox(src, caption) {
+    els.lightboxImg.src = src;
+    els.lightboxImg.alt = caption;
+    if (typeof els.lightbox.showModal === 'function') { els.lightbox.showModal(); }
+  }
+  function thumbCell(part) {
+    var imgs = state.images[part];
+    if (!imgs || !imgs.length) { return h('span', { class: 'muted' }, '—'); }
+    return h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge picture of ' + part, onclick: function () { openLightbox(imgs[0], 'Picture of ' + part); } },
+      h('img', { class: 'thumb', src: imgs[0], alt: 'Picture of ' + part }));
+  }
+
+  /* ---------- rendering: shared ---------- */
+  function showTab(name) {
+    state.tab = name;
+    tabNames.forEach(function (t) {
+      var selected = t === name;
+      var btn = $('tab-' + t);
+      btn.setAttribute('aria-selected', String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+      $('panel-' + t).hidden = !selected;
+    });
+    renderAll();
+  }
+  function renderAll() {
+    if (!model) { return; }
+    renderKits();
+    renderLookup();
+    renderLibrary();
+    renderBackup();
+  }
+  function fillSelect(select, value) {
+    select.textContent = '';
+    var kits = h('optgroup', { label: 'Kits' });
+    var subs = h('optgroup', { label: 'Sub-assemblies and boxes' });
+    Object.keys(state.assemblies).sort(collator.compare).forEach(function (n) {
+      var opt = h('option', { value: n }, n);
+      (model.roots.indexOf(n) > -1 ? kits : subs).appendChild(opt);
+    });
+    select.appendChild(kits);
+    if (subs.children.length) { select.appendChild(subs); }
+    select.value = value;
+  }
+  function openPart(part) {
+    state.selectedPart = part;
+    els.partSearch.value = part;
+    showTab('lookup');
+    els.partResults.textContent = '';
+    $('partDetail').scrollIntoView({ block: 'start' });
+  }
+  function alsoInText(part, kit) {
+    var kits = (model.usage.get(part) || []).filter(function (u) { return u.kit !== kit; }).map(function (u) { return u.kit; });
+    return kits.length ? kits.join(', ') : '—';
+  }
+
+  /* ---------- rendering: kits ---------- */
+  function isOpen(node) { return state.expanded.has(node.id) ? state.expanded.get(node.id) : node.depth === 0; }
+  function setAllOpen(nodes, open) {
+    nodes.forEach(function (n) {
+      if (n.children.length) { state.expanded.set(n.id, open); setAllOpen(n.children, open); }
+    });
+  }
+  function renderKits() {
+    var has = Object.keys(state.assemblies).length > 0;
+    els.kitEmpty.hidden = has;
+    els.kitContent.hidden = !has;
+    if (!has) { return; }
+    fillSelect(els.kitSelect, state.kit);
+    var kit = state.kit;
+    var flat = flatten(kit);
+    var q = els.kitFilter.value.trim().toLowerCase();
+    var hideM = els.hideConfig.checked;
+    var treeView = state.view === 'tree';
+    els.viewTree.setAttribute('aria-pressed', String(treeView));
+    els.viewFlat.setAttribute('aria-pressed', String(!treeView));
+    els.expandAll.hidden = !treeView;
+    els.collapseAll.hidden = !treeView;
+    renderStats(kit, flat);
+
+    var headCols = treeView
+      ? [['Part', ''], ['Description', ''], ['Qty / parent', 'num'], ['Total in kit', 'num'], ['Type', ''], ['Also in', ''], ['Picture', '']]
+      : [['Part', ''], ['Description', ''], ['Total in kit', 'num'], ['Where in the kit', ''], ['Type', ''], ['Also in', ''], ['Picture', '']];
+    els.kitHead.textContent = '';
+    els.kitHead.appendChild(h.apply(null, ['tr', null].concat(headCols.map(function (c) { return h('th', { scope: 'col', class: c[1] }, c[0]); }))));
+
+    els.kitBody.textContent = '';
+    var frag = document.createDocumentFragment();
+    var count = 0;
+    if (treeView) {
+      var tree = buildTree(kit);
+      var matches = function (n) { return !q || n.part.toLowerCase().indexOf(q) > -1 || n.desc.toLowerCase().indexOf(q) > -1; };
+      var visible = function (n) { return !(hideM && n.type === 'M') && (matches(n) || n.children.some(visible)); };
+      var emit = function (nodes) {
+        nodes.forEach(function (n) {
+          if (!visible(n)) { return; }
+          var open = q ? true : isOpen(n);
+          frag.appendChild(treeRow(n, flat, open, kit));
+          count++;
+          if (open && n.children.length) { emit(n.children); }
+        });
+      };
+      emit(tree);
+      els.expandAll.onclick = function () { setAllOpen(tree, true); renderKits(); };
+      els.collapseAll.onclick = function () { setAllOpen(tree, false); renderKits(); };
+    } else {
+      var parts = Array.from(flat.keys()).filter(function (p) { return !state.assemblies[p]; }).sort(collator.compare);
+      parts.forEach(function (p) {
+        var entry = flat.get(p);
+        var desc = descOf(p);
+        var isCfg = entry.places.every(function (pl) { return pl.type === 'M'; });
+        if (hideM && isCfg) { return; }
+        if (q && p.toLowerCase().indexOf(q) < 0 && desc.toLowerCase().indexOf(q) < 0) { return; }
+        var where = h('td');
+        entry.places.forEach(function (pl, i) {
+          if (i) { where.appendChild(document.createElement('br')); }
+          where.appendChild(document.createTextNode(placeText(pl) + ' (' + fmt(pl.total) + ')'));
+        });
+        frag.appendChild(h('tr', { class: isCfg ? 'cfg' : '' },
+          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(p); } }, p),
+            entry.places.length > 1 ? h('span', { class: 'badge rep', title: 'This part appears in ' + entry.places.length + ' places in this kit' }, '×' + entry.places.length) : null),
+          h('td', null, desc),
+          h('td', { class: 'num' }, fmt(entry.total)),
+          where,
+          h('td', null, isCfg ? 'M' : 'P'),
+          h('td', null, alsoInText(p, kit)),
+          h('td', null, thumbCell(p))));
+        count++;
+      });
+    }
+    els.kitBody.appendChild(frag);
+    els.kitNone.hidden = count > 0;
+  }
+  function treeRow(n, flat, open, kit) {
+    var toggle = n.children.length
+      ? h('button', {
+        type: 'button', class: 'tog', 'aria-expanded': String(open), 'aria-label': (open ? 'Collapse ' : 'Expand ') + n.part,
+        onclick: function () { state.expanded.set(n.id, !open); renderKits(); }
+      }, open ? '▾' : '▸')
+      : h('span', { class: 'tog-sp' });
+    var entry = flat.get(n.part);
+    var repeats = !n.isAsm && entry && entry.places.length > 1;
+    return h('tr', { class: n.type === 'M' ? 'cfg' : '' },
+      h('td', null, h('div', { class: 'indent', style: 'padding-left:' + (n.depth * 1.4) + 'rem' },
+        toggle,
+        h('button', { type: 'button', class: 'link', onclick: function () { openPart(n.part); } }, n.part),
+        n.isAsm ? h('span', { class: 'badge' }, n.children.length ? 'assembly' : 'loop') : null,
+        repeats ? h('span', { class: 'badge rep', title: 'This part appears in ' + entry.places.length + ' places in this kit' }, '×' + entry.places.length) : null)),
+      h('td', null, n.desc),
+      h('td', { class: 'num' }, fmt(n.qty)),
+      h('td', { class: 'num' }, fmt(n.total)),
+      h('td', null, n.type || ''),
+      h('td', null, alsoInText(n.part, kit)),
+      h('td', null, thumbCell(n.part)));
+  }
+  function renderStats(kit, flat) {
+    var leaf = Array.from(flat.keys()).filter(function (p) { return !state.assemblies[p]; });
+    var pieces = 0, repeated = 0, shared = 0;
+    leaf.forEach(function (p) {
+      var e = flat.get(p);
+      var isCfg = e.places.every(function (pl) { return pl.type === 'M'; });
+      if (!isCfg) { pieces = round6(pieces + e.total); }
+      if (e.places.length > 1) { repeated++; }
+      if ((model.usage.get(p) || []).length > 1) { shared++; }
+    });
+    els.kitStats.textContent = '';
+    [[leaf.length, 'distinct parts'], [fmt(pieces), 'physical pieces (type M excluded)'], [repeated, 'repeat inside this kit'], [shared, 'also used in another kit']]
+      .forEach(function (s) { els.kitStats.appendChild(h('div', { class: 'stat' }, h('b', null, String(s[0])), h('span', null, s[1]))); });
+  }
+
+  /* ---------- rendering: lookup ---------- */
+  function searchParts(q) {
+    var needle = q.trim().toLowerCase();
+    if (!needle) { return []; }
+    var found = allParts().filter(function (p) { return p.toLowerCase().indexOf(needle) > -1 || descOf(p).toLowerCase().indexOf(needle) > -1; });
+    found.sort(function (a, b) {
+      var sa = a.toLowerCase().indexOf(needle) === 0 ? 0 : 1, sb = b.toLowerCase().indexOf(needle) === 0 ? 0 : 1;
+      return sa - sb || collator.compare(a, b);
+    });
+    return found.slice(0, 15);
+  }
+  function renderResults() {
+    els.partResults.textContent = '';
+    var list = searchParts(els.partSearch.value);
+    list.forEach(function (p) {
+      els.partResults.appendChild(h('li', null, h('button', { type: 'button', onclick: function () { openPart(p); } }, h('b', null, p), h('span', { class: 'muted' }, descOf(p)))));
+    });
+    if (els.partSearch.value.trim() && !list.length) { els.partResults.appendChild(h('li', { class: 'hint' }, 'No part matches that.')); }
+  }
+  function renderLookup() {
+    var box = els.partDetail;
+    var part = state.selectedPart;
+    if (!part || !(model.parentsOf.has(part) || state.assemblies[part])) { box.hidden = true; return; }
+    box.hidden = false;
+    box.textContent = '';
+    var isAsm = !!state.assemblies[part];
+    var usage = model.usage.get(part) || [];
+    var parents = Array.from(model.parentsOf.get(part) || []).sort(collator.compare);
+    var aliases = aliasesOf(part);
+
+    box.appendChild(h('h2', null, part, isAsm ? h('span', { class: 'badge' }, 'assembly') : null));
+    box.appendChild(h('p', null, descOf(part) || 'No description'));
+
+    if (aliases.length) {
+      box.appendChild(h('h3', null, 'Same physical part, other number'));
+      var chips = h('div', { class: 'chips' });
+      aliases.forEach(function (a) {
+        var kits = (model.usage.get(a) || []).map(function (u) { return u.kit; });
+        chips.appendChild(h('button', { type: 'button', class: 'btn small', onclick: function () { openPart(a); } }, a + (kits.length ? ' — ' + kits.join(', ') : '')));
+      });
+      box.appendChild(chips);
+    }
+
+    box.appendChild(h('h3', null, 'Is it in the kit I am checking?'));
+    var select = h('select', { id: 'checkKit', 'aria-label': 'Kit to check against' });
+    fillSelect(select, state.checkKit);
+    select.addEventListener('change', function () { state.checkKit = select.value; renderLookup(); });
+    box.appendChild(h('div', { class: 'toolbar' }, h('label', { for: 'checkKit' }, 'Kit'), select));
+    box.appendChild(checkResult(part, state.checkKit));
+
+    box.appendChild(h('h3', null, 'Pictures'));
+    var gallery = h('div', { class: 'gallery' });
+    (state.images[part] || []).forEach(function (src, i) {
+      gallery.appendChild(h('div', { class: 'shot' },
+        h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge picture ' + (i + 1) + ' of ' + part, onclick: function () { openLightbox(src, 'Picture ' + (i + 1) + ' of ' + part); } },
+          h('img', { class: 'thumb', src: src, alt: 'Picture ' + (i + 1) + ' of ' + part })),
+        h('button', { type: 'button', class: 'btn small danger', 'aria-label': 'Remove picture ' + (i + 1), onclick: function () { removeImage(part, i); } }, '✕')));
+    });
+    box.appendChild(gallery);
+    var drop = h('div', { class: 'dropzone' },
+      'Drop a picture here, press Ctrl+V to paste a screenshot, or ',
+      h('button', { type: 'button', class: 'btn small', onclick: function () { pendingImagePart = part; els.imgInput.click(); } }, 'choose files'));
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+    drop.addEventListener('drop', function (e) {
+      e.preventDefault(); drop.classList.remove('over');
+      var files = Array.prototype.filter.call(e.dataTransfer.files, function (f) { return f.type.indexOf('image/') === 0; });
+      if (files.length) { addImages(part, files); }
+    });
+    box.appendChild(drop);
+
+    box.appendChild(h('h3', null, 'Used in kits'));
+    if (usage.length) {
+      var body = h('tbody');
+      usage.forEach(function (u) {
+        var where = h('td');
+        u.places.forEach(function (pl, i) {
+          if (i) { where.appendChild(document.createElement('br')); }
+          where.appendChild(document.createTextNode(placeText(pl) + ' — ' + fmt(pl.qty) + ' per parent, ' + fmt(pl.total) + ' in kit'));
+        });
+        body.appendChild(h('tr', null,
+          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { state.kit = u.kit; showTab('kits'); } }, u.kit)),
+          h('td', { class: 'num' }, fmt(u.total)), where));
+      });
+      box.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
+        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Kit'), h('th', { scope: 'col', class: 'num' }, 'Total'), h('th', { scope: 'col' }, 'Where'))), body)));
+    } else {
+      box.appendChild(h('p', { class: 'hint' }, 'Not used in any saved kit.'));
+    }
+
+    if (parents.length) {
+      box.appendChild(h('h3', null, 'Directly inside'));
+      var pbody = h('tbody');
+      parents.forEach(function (pa) {
+        state.assemblies[pa].items.filter(function (it) { return it.part === part; }).forEach(function (it) {
+          pbody.appendChild(h('tr', null,
+            h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(pa); } }, pa)),
+            h('td', { class: 'num' }, fmt(it.qty)), h('td', null, it.type || ''), h('td', { class: 'num' }, it.mtl === null ? '' : String(it.mtl))));
+        });
+      });
+      box.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
+        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Assembly'), h('th', { scope: 'col', class: 'num' }, 'Qty / parent'), h('th', { scope: 'col' }, 'Type'), h('th', { scope: 'col', class: 'num' }, 'Mtl'))), pbody)));
+    }
+
+    if (isAsm) {
+      box.appendChild(h('h3', null, 'Contains'));
+      var cbody = h('tbody');
+      state.assemblies[part].items.forEach(function (it) {
+        cbody.appendChild(h('tr', { class: it.type === 'M' ? 'cfg' : '' },
+          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(it.part); } }, it.part)),
+          h('td', null, it.desc || descOf(it.part)), h('td', { class: 'num' }, fmt(it.qty)), h('td', null, it.type || '')));
+      });
+      box.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
+        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Part'), h('th', { scope: 'col' }, 'Description'), h('th', { scope: 'col', class: 'num' }, 'Qty'), h('th', { scope: 'col' }, 'Type'))), cbody)));
+    }
+  }
+  function checkResult(part, kit) {
+    var box = h('div', { class: 'check', role: 'status' });
+    if (!kit || !state.assemblies[kit]) { box.classList.add('warn'); box.textContent = 'Pick a kit to check.'; return box; }
+    if (part === kit) { box.classList.add('warn'); box.textContent = part + ' is the kit itself.'; return box; }
+    var fk = flatten(kit);
+    var direct = fk.get(part);
+    var list = function (entry) {
+      var ul = h('ul');
+      entry.places.forEach(function (pl) { ul.appendChild(h('li', null, placeText(pl) + ' — ' + fmt(pl.qty) + ' per parent, ' + fmt(pl.total) + ' in kit')); });
+      return ul;
+    };
+    if (direct) {
+      box.classList.add('ok');
+      box.appendChild(h('b', null, 'Yes — ' + part + ' is in ' + kit + '. Total: ' + fmt(direct.total)));
+      box.appendChild(list(direct));
+      return box;
+    }
+    var via = aliasesOf(part).filter(function (m) { return fk.has(m); });
+    if (via.length) {
+      box.classList.add('warn');
+      box.appendChild(h('b', null, 'Not under this number, but the same physical part is in ' + kit + ' as ' + via.join(', ') + '.'));
+      via.forEach(function (m) { box.appendChild(h('div', null, m + ' — total ' + fmt(fk.get(m).total))); box.appendChild(list(fk.get(m))); });
+      return box;
+    }
+    box.classList.add('bad');
+    box.appendChild(h('b', null, 'No — ' + part + ' is not in ' + kit + '.'));
+    return box;
+  }
+
+  /* ---------- rendering: library ---------- */
+  function renderLibrary() {
+    var names = Object.keys(state.assemblies).sort(collator.compare);
+    els.libNone.hidden = names.length > 0;
+    els.libBody.textContent = '';
+    names.forEach(function (name) {
+      var a = state.assemblies[name];
+      var parents = Array.from(model.parentsOf.get(name) || []).sort(collator.compare);
+      els.libBody.appendChild(h('tr', null,
+        h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { state.kit = name; showTab('kits'); } }, name)),
+        h('td', { class: 'num' }, String(a.items.length)),
+        h('td', null, parents.length ? parents.join(', ') : 'Top level (kit)'),
+        h('td', null, timeText(a.updated)),
+        h('td', null, h('div', { class: 'actions' },
+          h('button', { type: 'button', class: 'btn small', onclick: function () { loadIntoEditor(name); } }, 'Edit'),
+          h('button', { type: 'button', class: 'btn small danger', onclick: function () { deleteAssembly(name); } }, 'Delete')))));
+    });
+    els.knownParts.textContent = '';
+    allParts().forEach(function (p) { els.knownParts.appendChild(h('option', { value: p })); });
+    updatePreview();
+  }
+  function updatePreview() {
+    var text = els.asmPaste.value;
+    var name = normPart(els.asmName.value);
+    if (!text.trim()) { els.addPreview.textContent = 'Nothing pasted yet.'; return; }
+    var res = parseItems(text);
+    var msg = res.items.length + ' parts found';
+    if (res.skipped) { msg += ', ' + res.skipped + ' blank rows skipped'; }
+    if (res.defaultedQty) { msg += ', ' + res.defaultedQty + ' without a quantity (counted as 1)'; }
+    if (name && state.assemblies[name]) { msg += '. ' + name + ' is already saved and will be replaced.'; }
+    els.addPreview.textContent = msg;
+  }
+  function loadIntoEditor(name) {
+    var lines = ['Mtl\tPart\tDescription\tQty/Parent\tType'];
+    state.assemblies[name].items.forEach(function (it) {
+      lines.push([it.mtl === null ? '' : it.mtl, it.part, it.desc, it.qty, it.type].join('\t'));
+    });
+    els.asmName.value = name;
+    els.asmPaste.value = lines.join('\n');
+    updatePreview();
+    els.asmPaste.focus();
+  }
+  function deleteAssembly(name) {
+    if (!window.confirm('Delete ' + name + ' and its list of parts? Pictures are kept.')) { return; }
+    delete state.assemblies[name];
+    changed();
+  }
+  function saveAssembly(e) {
+    e.preventDefault();
+    var name = normPart(els.asmName.value);
+    if (!name) { toast('Type the assembly part number first.'); els.asmName.focus(); return; }
+    var res = parseItems(els.asmPaste.value);
+    if (!res.items.length) { toast('Paste the Epicor list first. No parts were found.'); els.asmPaste.focus(); return; }
+    if (state.assemblies[name] && !window.confirm(name + ' is already saved. Replace it with this list?')) { return; }
+    state.assemblies[name] = { items: res.items, updated: new Date().toISOString() };
+    state.kit = state.kit && state.assemblies[state.kit] ? state.kit : name;
+    els.asmName.value = '';
+    els.asmPaste.value = '';
+    changed();
+    toast(name + ' saved with ' + res.items.length + ' parts.');
+  }
+  function loadExample() {
+    if (Object.keys(state.assemblies).length && !window.confirm('Add the example assemblies? Any saved assembly with the same part number will be replaced.')) { return; }
+    var now = new Date().toISOString();
+    Object.keys(EXAMPLE).forEach(function (name) {
+      state.assemblies[name] = {
+        updated: now,
+        items: EXAMPLE[name].map(function (r) { return { mtl: r[0], part: normPart(r[1]), desc: r[2], qty: r[3], type: r[4] }; })
+      };
+    });
+    state.kit = '77-K298';
+    changed();
+    showTab('kits');
+    toast('Example loaded.');
+  }
+
+  /* ---------- rendering: backup ---------- */
+  function renderBackup() {
+    var supported = typeof window.showDirectoryPicker === 'function';
+    var handle = backup.handle;
+    var granted = handle && backup.permission === 'granted';
+    els.btnConnect.hidden = !!handle;
+    els.btnConnect.disabled = !supported;
+    els.btnReconnect.hidden = !(handle && !granted);
+    els.btnBackupNow.hidden = !granted;
+    els.btnDisconnect.hidden = !handle;
+    var text;
+    if (!supported) { text = 'This browser cannot write to a folder. Use Chrome or Edge for automatic backup, or the manual file backup below.'; }
+    else if (!handle) { text = 'Not connected. Your data is only in this browser. Choose a folder inside OneDrive.'; }
+    else if (!granted) { text = 'Folder "' + handle.name + '" is saved, but the browser needs your permission again. Press Reconnect folder.'; }
+    else { text = 'Connected to "' + handle.name + '". ' + (backup.savedAt ? 'Last saved at ' + clock(backup.savedAt) + '.' : 'Waiting for the first save.'); }
+    if (backup.error) { text += ' ' + backup.error; }
+    els.backupStatus.textContent = text;
+    els.backupPill.className = 'pill' + (granted && !backup.error ? ' good' : (handle ? ' attn' : ''));
+    els.backupPill.textContent = granted ? 'Backup: ' + handle.name + (backup.savedAt ? ' · ' + clock(backup.savedAt) : '')
+      : (handle ? 'Backup: reconnect folder' : 'Backup: not connected');
+  }
+
+  /* ---------- events ---------- */
+  function wire() {
+    els.tabs.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-tab]');
+      if (btn) { showTab(btn.getAttribute('data-tab')); }
+    });
+    els.tabs.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') { return; }
+      var i = tabNames.indexOf(state.tab) + (e.key === 'ArrowRight' ? 1 : -1);
+      i = (i + tabNames.length) % tabNames.length;
+      showTab(tabNames[i]);
+      $('tab-' + tabNames[i]).focus();
+    });
+    els.backupPill.addEventListener('click', function () {
+      if (backup.handle && backup.permission !== 'granted') { reconnectFolder(); } else { showTab('backup'); }
+    });
+    els.kitSelect.addEventListener('change', function () { state.kit = els.kitSelect.value; state.checkKit = state.kit; renderKits(); });
+    els.kitFilter.addEventListener('input', renderKits);
+    els.hideConfig.addEventListener('change', renderKits);
+    els.viewTree.addEventListener('click', function () { state.view = 'tree'; renderKits(); });
+    els.viewFlat.addEventListener('click', function () { state.view = 'flat'; renderKits(); });
+    els.emptyExample.addEventListener('click', loadExample);
+    els.loadExample.addEventListener('click', loadExample);
+    els.emptyAdd.addEventListener('click', function () { showTab('library'); });
+    els.partSearch.addEventListener('input', renderResults);
+    els.partSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var list = searchParts(els.partSearch.value);
+        if (list.length) { openPart(list[0]); }
+      }
+    });
+    els.addForm.addEventListener('submit', saveAssembly);
+    els.asmPaste.addEventListener('input', updatePreview);
+    els.asmName.addEventListener('input', updatePreview);
+    els.addClear.addEventListener('click', function () { els.asmName.value = ''; els.asmPaste.value = ''; updatePreview(); });
+    els.btnConnect.addEventListener('click', connectFolder);
+    els.btnReconnect.addEventListener('click', reconnectFolder);
+    els.btnBackupNow.addEventListener('click', async function () { await persistAll(); toast(backup.error || 'Backup saved.'); });
+    els.btnDisconnect.addEventListener('click', disconnectFolder);
+    els.btnExport.addEventListener('click', exportFile);
+    els.restoreInput.addEventListener('change', function () { restoreFromFile(els.restoreInput.files[0]); els.restoreInput.value = ''; });
+    els.restoreLabel.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); els.restoreInput.click(); }
+    });
+    els.imgInput.addEventListener('change', function () {
+      var files = Array.prototype.filter.call(els.imgInput.files, function (f) { return f.type.indexOf('image/') === 0; });
+      if (files.length && pendingImagePart) { addImages(pendingImagePart, files); }
+      els.imgInput.value = '';
+    });
+    document.addEventListener('paste', function (e) {
+      if (state.tab !== 'lookup' || !state.selectedPart) { return; }
+      var t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) { return; }
+      var items = e.clipboardData ? Array.prototype.slice.call(e.clipboardData.items) : [];
+      var files = items.filter(function (i) { return i.type.indexOf('image/') === 0; }).map(function (i) { return i.getAsFile(); }).filter(Boolean);
+      if (files.length) { e.preventDefault(); addImages(state.selectedPart, files); }
+    });
+  }
+
+  async function init() {
+    wire();
+    var opened = await idb.open();
+    if (!opened) { els.storageWarn.hidden = false; }
+    state.assemblies = sanitizeAssemblies(await idb.get('assemblies'));
+    state.images = sanitizeImages(await idb.get('images'));
+    var handle = await idb.get('dir');
+    if (handle && typeof handle.queryPermission === 'function') {
+      backup.handle = handle;
+      try { backup.permission = await handle.queryPermission({ mode: 'readwrite' }); } catch (e) { backup.permission = 'prompt'; }
+    }
+    rebuild();
+    renderAll();
+  }
+  init();
+}());
+</script>
+</body>
+</html>

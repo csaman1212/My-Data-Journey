@@ -105,6 +105,12 @@ tr.changed td:first-child { box-shadow: inset 4px 0 var(--warn); }
 .dropzone { border: 2px dashed var(--line); border-radius: .6rem; padding: .8rem; text-align: center; color: var(--muted); }
 .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
 .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+th.xq, td.xq { text-align: center; font-variant-numeric: tabular-nums; }
+td.xq.has { font-weight: 700; }
+td.xq.qdiff { background: var(--warn-bg); color: var(--warn); }
+.xalias { color: var(--warn); font-size: .8rem; }
+.thumbwrap { display: inline-flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+.thumbwrap .thumb { width: 2.2rem; height: 2.2rem; }
 
 dialog { border: 0; border-radius: .75rem; padding: 1rem; max-width: 92vw; background: var(--surface); color: var(--text); }
 dialog::backdrop { background: rgba(0, 0, 0, .6); }
@@ -127,6 +133,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 <nav role="tablist" aria-label="Sections" id="tabs">
   <button type="button" role="tab" id="tab-kits" aria-controls="panel-kits" aria-selected="true" data-tab="kits">Kits</button>
   <button type="button" role="tab" id="tab-lookup" aria-controls="panel-lookup" aria-selected="false" tabindex="-1" data-tab="lookup">Part lookup</button>
+  <button type="button" role="tab" id="tab-xref" aria-controls="panel-xref" aria-selected="false" tabindex="-1" data-tab="xref">Cross reference</button>
   <button type="button" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="false" tabindex="-1" data-tab="library">Add from Epicor</button>
   <button type="button" role="tab" id="tab-backup" aria-controls="panel-backup" aria-selected="false" tabindex="-1" data-tab="backup">Backup</button>
 </nav>
@@ -193,6 +200,51 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       <ul class="results" id="partResults"></ul>
     </div>
     <div id="partDetail" class="card" hidden></div>
+  </section>
+
+  <section id="panel-xref" role="tabpanel" aria-labelledby="tab-xref" hidden>
+    <div id="xEmpty" class="card empty" hidden>
+      <h2>No kits yet</h2>
+      <p class="hint">Save some assemblies first (Add from Epicor tab), then compare them here.</p>
+    </div>
+    <div id="xContent" hidden>
+      <div class="card">
+        <h2>Part cross reference</h2>
+        <p class="hint">Each column is a kit revision. Add as many as you want, including two revisions of the same kit. Each cell shows the total quantity of that part in the kit. A yellow cell means the quantity differs between the columns. "≈" means the kit has the same physical part under another number.</p>
+        <div class="toolbar">
+          <label for="xKit">Add column</label>
+          <select id="xKit"></select>
+          <label for="xRev" class="sr">Revision</label>
+          <select id="xRev"></select>
+          <button type="button" class="btn primary" id="xAdd">Add</button>
+          <button type="button" class="btn" id="xAllKits">All kits, latest revisions</button>
+          <button type="button" class="btn" id="xClear">Clear columns</button>
+        </div>
+        <div class="chips" id="xChips"></div>
+      </div>
+      <div class="toolbar">
+        <label for="xFilter" class="sr">Filter parts</label>
+        <input type="search" id="xFilter" placeholder="Filter by part or description">
+        <label for="xMode" class="sr">Show</label>
+        <select id="xMode">
+          <option value="all">All parts</option>
+          <option value="common">In every column</option>
+          <option value="differ">Different between columns</option>
+          <option value="unique">Only in one column</option>
+        </select>
+        <label><input type="checkbox" id="xHideCfg"> Hide configuration items (type M)</label>
+        <button type="button" class="btn" id="xExport">Download as CSV</button>
+      </div>
+      <div class="stats" id="xStats"></div>
+      <div class="tablewrap">
+        <table>
+          <caption class="sr">Part cross reference across the selected kit revisions</caption>
+          <thead id="xHead"></thead>
+          <tbody id="xBody"></tbody>
+        </table>
+      </div>
+      <p id="xNone" class="hint" hidden>Nothing to show. Add a column or change the filter.</p>
+    </div>
   </section>
 
   <section id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden>
@@ -284,9 +336,14 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   </section>
 </main>
 
-<dialog id="lightbox" aria-label="Picture">
+<dialog id="lightbox" aria-label="Pictures">
   <img id="lightboxImg" alt="">
-  <form method="dialog"><button type="submit" class="btn">Close</button></form>
+  <p id="lightboxCap" class="hint"></p>
+  <div class="actions">
+    <button type="button" class="btn" id="lbPrev">Previous</button>
+    <button type="button" class="btn" id="lbNext">Next</button>
+    <form method="dialog"><button type="submit" class="btn">Close</button></form>
+  </div>
 </dialog>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <input type="file" id="imgInput" accept="image/*" multiple class="sr" tabindex="-1">
@@ -408,14 +465,19 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     backupStatus: $('backupStatus'), btnConnect: $('btnConnect'), btnReconnect: $('btnReconnect'),
     btnBackupNow: $('btnBackupNow'), btnDisconnect: $('btnDisconnect'), btnExport: $('btnExport'),
     restoreInput: $('restoreInput'), restoreLabel: $('restoreLabel'),
-    lightbox: $('lightbox'), lightboxImg: $('lightboxImg'), toast: $('toast'), imgInput: $('imgInput')
+    lightbox: $('lightbox'), lightboxImg: $('lightboxImg'), lightboxCap: $('lightboxCap'), lbPrev: $('lbPrev'), lbNext: $('lbNext'),
+    toast: $('toast'), imgInput: $('imgInput'),
+    xEmpty: $('xEmpty'), xContent: $('xContent'), xKit: $('xKit'), xRev: $('xRev'), xAdd: $('xAdd'), xAllKits: $('xAllKits'),
+    xClear: $('xClear'), xChips: $('xChips'), xFilter: $('xFilter'), xMode: $('xMode'), xHideCfg: $('xHideCfg'),
+    xExport: $('xExport'), xStats: $('xStats'), xHead: $('xHead'), xBody: $('xBody'), xNone: $('xNone')
   };
-  var tabNames = ['kits', 'lookup', 'library', 'backup'];
+  var tabNames = ['kits', 'lookup', 'xref', 'library', 'backup'];
 
   var state = {
     assemblies: {}, images: {}, kit: '', rev: '', cmp: '', checkKit: '', checkRev: '', view: 'tree', tab: 'kits',
-    selectedPart: '', expanded: new Map()
+    selectedPart: '', expanded: new Map(), xref: [], xrefTouched: false
   };
+  var lightboxState = { part: '', index: 0 };
   var model = null;
   var backup = { handle: null, permission: 'none', savedAt: null, error: '' };
   var saveTimer = 0;
@@ -674,6 +736,10 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     if (!A[state.checkKit]) { state.checkKit = state.kit; state.checkRev = ''; }
     if (state.checkKit && !findRev(state.checkKit, state.checkRev)) { state.checkRev = latestRev(state.checkKit).rev; }
     if (!state.kit || !findRev(state.kit, state.cmp) || state.cmp === state.rev) { state.cmp = ''; }
+    state.xref = state.xref.filter(function (c) { return findRev(c.kit, c.rev); });
+    if (!state.xrefTouched) {
+      state.xref = roots.map(function (k) { return { kit: k, rev: latestRev(k).rev }; });
+    }
   }
   function flatten(name, revObj) {
     var key = name + '|' + revObj.rev;
@@ -938,16 +1004,45 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     if (!state.images[part].length) { delete state.images[part]; }
     changed();
   }
-  function openLightbox(src, caption) {
-    els.lightboxImg.src = src;
-    els.lightboxImg.alt = caption;
+  function showLightbox() {
+    var imgs = state.images[lightboxState.part] || [];
+    var i = lightboxState.index;
+    els.lightboxImg.src = imgs[i];
+    els.lightboxImg.alt = 'Picture ' + (i + 1) + ' of ' + lightboxState.part;
+    els.lightboxCap.textContent = lightboxState.part + ' · picture ' + (i + 1) + ' of ' + imgs.length;
+    els.lbPrev.hidden = imgs.length < 2;
+    els.lbNext.hidden = imgs.length < 2;
+  }
+  function stepLightbox(delta) {
+    var n = (state.images[lightboxState.part] || []).length;
+    if (n < 2) { return; }
+    lightboxState.index = (lightboxState.index + delta + n) % n;
+    showLightbox();
+  }
+  function openLightbox(part, index) {
+    if (!state.images[part] || !state.images[part][index]) { return; }
+    lightboxState = { part: part, index: index };
+    showLightbox();
     if (typeof els.lightbox.showModal === 'function') { els.lightbox.showModal(); }
   }
   function thumbCell(part) {
     var imgs = state.images[part];
     if (!imgs || !imgs.length) { return h('span', { class: 'muted' }, '—'); }
-    return h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge picture of ' + part, onclick: function () { openLightbox(imgs[0], 'Picture of ' + part); } },
-      h('img', { class: 'thumb', src: imgs[0], alt: 'Picture of ' + part }));
+    return h('span', { class: 'thumbwrap' },
+      h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge pictures of ' + part, onclick: function () { openLightbox(part, 0); } },
+        h('img', { class: 'thumb', src: imgs[0], alt: 'Picture of ' + part })),
+      imgs.length > 1 ? h('span', { class: 'badge' }, '+' + (imgs.length - 1)) : null);
+  }
+  function pictureCell(part) {
+    var imgs = state.images[part] || [];
+    var box = h('span', { class: 'thumbwrap' });
+    imgs.slice(0, 3).forEach(function (src, i) {
+      box.appendChild(h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge picture ' + (i + 1) + ' of ' + part, onclick: function () { openLightbox(part, i); } },
+        h('img', { class: 'thumb', src: src, alt: 'Picture ' + (i + 1) + ' of ' + part })));
+    });
+    if (imgs.length > 3) { box.appendChild(h('span', { class: 'badge' }, '+' + (imgs.length - 3))); }
+    box.appendChild(h('button', { type: 'button', class: 'btn small', 'aria-label': 'Add pictures to ' + part, onclick: function () { pendingImagePart = part; els.imgInput.click(); } }, '＋'));
+    return box;
   }
 
   /* ---------- rendering: shared ---------- */
@@ -966,6 +1061,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     if (!model) { return; }
     renderKits();
     renderLookup();
+    renderXref();
     renderLibrary();
     renderBackup();
   }
@@ -1227,7 +1323,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     var gallery = h('div', { class: 'gallery' });
     (state.images[part] || []).forEach(function (src, i) {
       gallery.appendChild(h('div', { class: 'shot' },
-        h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge picture ' + (i + 1) + ' of ' + part, onclick: function () { openLightbox(src, 'Picture ' + (i + 1) + ' of ' + part); } },
+        h('button', { type: 'button', class: 'thumbbtn', 'aria-label': 'Enlarge picture ' + (i + 1) + ' of ' + part, onclick: function () { openLightbox(part, i); } },
           h('img', { class: 'thumb', src: src, alt: 'Picture ' + (i + 1) + ' of ' + part })),
         h('button', { type: 'button', class: 'btn small danger', 'aria-label': 'Remove picture ' + (i + 1), onclick: function () { removeImage(part, i); } }, '✕')));
     });
@@ -1334,6 +1430,123 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       box.appendChild(h('div', null, 'All revisions: ' + summary));
     }
     return box;
+  }
+
+  /* ---------- rendering: cross reference ---------- */
+  function xrefColumns() {
+    return state.xref.map(function (c) {
+      var revObj = findRev(c.kit, c.rev);
+      return { kit: c.kit, rev: revObj, flat: flatten(c.kit, revObj) };
+    });
+  }
+  function xrefRows(cols) {
+    var parts = new Set();
+    cols.forEach(function (c) { c.flat.forEach(function (_, p) { if (!state.assemblies[p]) { parts.add(p); } }); });
+    return Array.from(parts).sort(collator.compare).map(function (p) {
+      var present = [];
+      var cells = cols.map(function (c) {
+        var e = c.flat.get(p);
+        if (e) { present.push(e.total); return { kind: 'has', total: e.total, cfg: e.places.every(function (pl) { return pl.type === 'M'; }) }; }
+        var via = aliasesOf(p).filter(function (m) { return c.flat.has(m); });
+        return via.length ? { kind: 'alias', alias: via[0] } : { kind: 'none' };
+      });
+      var cfg = cells.some(function (x) { return x.kind === 'has'; }) && cells.every(function (x) { return x.kind !== 'has' || x.cfg; });
+      return {
+        part: p, desc: descOf(p), cells: cells, inCount: present.length, cfg: cfg,
+        qtyDiffer: present.some(function (t) { return t !== present[0]; })
+      };
+    });
+  }
+  function xrefVisible(rows, nCols) {
+    var q = els.xFilter.value.trim().toLowerCase();
+    var mode = els.xMode.value;
+    return rows.filter(function (r) {
+      if (els.xHideCfg.checked && r.cfg) { return false; }
+      if (q && r.part.toLowerCase().indexOf(q) < 0 && r.desc.toLowerCase().indexOf(q) < 0) { return false; }
+      if (mode === 'common') { return r.inCount === nCols; }
+      if (mode === 'differ') { return r.inCount < nCols || r.qtyDiffer; }
+      if (mode === 'unique') { return r.inCount === 1; }
+      return true;
+    });
+  }
+  function colLabel(c) { return c.kit + ' rev ' + c.rev.rev; }
+  function renderXref() {
+    var has = Object.keys(state.assemblies).length > 0;
+    els.xEmpty.hidden = has;
+    els.xContent.hidden = !has;
+    if (!has) { return; }
+    var kit = state.assemblies[els.xKit.value] ? els.xKit.value : model.roots[0];
+    fillKitSelect(els.xKit, kit);
+    var rev = findRev(kit, els.xRev.value) ? els.xRev.value : latestRev(kit).rev;
+    fillRevSelect(els.xRev, kit, rev);
+
+    var cols = xrefColumns();
+    els.xChips.textContent = '';
+    cols.forEach(function (c, i) {
+      els.xChips.appendChild(h('button', {
+        type: 'button', class: 'btn small', 'aria-label': 'Remove column ' + colLabel(c),
+        onclick: function () { state.xref.splice(i, 1); state.xrefTouched = true; saveXref(); renderXref(); }
+      }, colLabel(c) + '  ✕'));
+    });
+
+    var rows = xrefRows(cols);
+    var shown = xrefVisible(rows, cols.length);
+    var full = rows.filter(function (r) { return r.inCount === cols.length; }).length;
+    els.xStats.textContent = '';
+    [[shown.length, 'parts shown (of ' + rows.length + ')'], [full, 'in every column'],
+      [rows.filter(function (r) { return r.inCount > 0 && r.inCount < cols.length; }).length, 'missing from at least one column'],
+      [rows.filter(function (r) { return r.inCount > 1 && r.qtyDiffer; }).length, 'with different quantities']]
+      .forEach(function (s) { els.xStats.appendChild(h('div', { class: 'stat' }, h('b', null, String(s[0])), h('span', null, s[1]))); });
+
+    els.xHead.textContent = '';
+    var headCells = [h('th', { scope: 'col' }, 'Part'), h('th', { scope: 'col' }, 'Description')];
+    cols.forEach(function (c) {
+      headCells.push(h('th', { scope: 'col', class: 'xq' },
+        h('button', { type: 'button', class: 'link', onclick: function () { openKit(c.kit, c.rev.rev); } }, c.kit),
+        h('div', { class: 'muted' }, 'rev ' + c.rev.rev + (c.rev.effective ? ' · ' + dateText(c.rev.effective) : ''))));
+    });
+    headCells.push(h('th', { scope: 'col', class: 'xq' }, 'In'), h('th', { scope: 'col' }, 'Pictures'));
+    els.xHead.appendChild(h.apply(null, ['tr', null].concat(headCells)));
+
+    els.xBody.textContent = '';
+    var frag = document.createDocumentFragment();
+    shown.forEach(function (r) {
+      var cells = [
+        h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(r.part); } }, r.part)),
+        h('td', null, r.desc)
+      ];
+      r.cells.forEach(function (c) {
+        if (c.kind === 'has') { cells.push(h('td', { class: 'xq has' + (r.qtyDiffer ? ' qdiff' : '') }, fmt(c.total))); }
+        else if (c.kind === 'alias') { cells.push(h('td', { class: 'xq', title: 'Same physical part as ' + c.alias }, h('span', { class: 'xalias' }, '≈ ' + c.alias))); }
+        else { cells.push(h('td', { class: 'xq muted' }, '—')); }
+      });
+      cells.push(h('td', { class: 'xq' }, r.inCount + '/' + cols.length), h('td', null, pictureCell(r.part)));
+      frag.appendChild(h.apply(null, ['tr', { class: r.cfg ? 'cfg' : '' }].concat(cells)));
+    });
+    els.xBody.appendChild(frag);
+    els.xNone.hidden = shown.length > 0;
+  }
+  function saveXref() { idb.set('xref', { cols: state.xref, touched: state.xrefTouched }); }
+  function exportXrefCsv() {
+    var cols = xrefColumns();
+    var shown = xrefVisible(xrefRows(cols), cols.length);
+    var safe = function (v) {
+      var t = String(v);
+      if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+      return '"' + t.replace(/"/g, '""') + '"';
+    };
+    var lines = [['Part', 'Description'].concat(cols.map(colLabel)).concat(['In', 'Pictures']).map(safe).join(',')];
+    shown.forEach(function (r) {
+      var cells = r.cells.map(function (c) { return c.kind === 'has' ? fmt(c.total) : (c.kind === 'alias' ? '~' + c.alias : ''); });
+      lines.push([r.part, r.desc].concat(cells).concat([r.inCount + '/' + cols.length, (state.images[r.part] || []).length]).map(safe).join(','));
+    });
+    var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = h('a', { href: url, download: 'part-cross-reference.csv' });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
   /* ---------- rendering: library ---------- */
@@ -1503,6 +1716,31 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.revSelect.addEventListener('change', function () { state.rev = els.revSelect.value; state.cmp = ''; renderKits(); });
     els.cmpSelect.addEventListener('change', function () { state.cmp = els.cmpSelect.value; renderKits(); });
     els.editDetails.addEventListener('click', function () { loadIntoEditor(state.kit, state.rev); });
+    els.xKit.addEventListener('change', function () { els.xRev.value = ''; renderXref(); });
+    els.xAdd.addEventListener('click', function () {
+      var kit = els.xKit.value, rev = els.xRev.value;
+      if (state.xref.some(function (c) { return c.kit === kit && c.rev === rev; })) { toast(kit + ' rev ' + rev + ' is already a column.'); return; }
+      state.xref.push({ kit: kit, rev: rev });
+      state.xrefTouched = true;
+      saveXref();
+      renderXref();
+    });
+    els.xAllKits.addEventListener('click', function () {
+      state.xref = model.roots.map(function (k) { return { kit: k, rev: latestRev(k).rev }; });
+      state.xrefTouched = true;
+      saveXref();
+      renderXref();
+    });
+    els.xClear.addEventListener('click', function () { state.xref = []; state.xrefTouched = true; saveXref(); renderXref(); });
+    els.xFilter.addEventListener('input', renderXref);
+    els.xMode.addEventListener('change', renderXref);
+    els.xHideCfg.addEventListener('change', renderXref);
+    els.xExport.addEventListener('click', exportXrefCsv);
+    els.lbPrev.addEventListener('click', function () { stepLightbox(-1); });
+    els.lbNext.addEventListener('click', function () { stepLightbox(1); });
+    els.lightbox.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { stepLightbox(-1); } else if (e.key === 'ArrowRight') { stepLightbox(1); }
+    });
     els.kitFilter.addEventListener('input', renderKits);
     els.hideConfig.addEventListener('change', renderKits);
     els.viewTree.addEventListener('click', function () { state.view = 'tree'; renderKits(); });
@@ -1553,6 +1791,11 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     if (!opened) { els.storageWarn.hidden = false; }
     state.assemblies = sanitizeAssemblies(await idb.get('assemblies'));
     state.images = sanitizeImages(await idb.get('images'));
+    var savedXref = await idb.get('xref');
+    if (savedXref && Array.isArray(savedXref.cols)) {
+      state.xref = savedXref.cols.map(function (c) { return { kit: normPart(c && c.kit), rev: normRev(c && c.rev) }; });
+      state.xrefTouched = !!savedXref.touched;
+    }
     var handle = await idb.get('dir');
     if (handle && typeof handle.queryPermission === 'function') {
       backup.handle = handle;

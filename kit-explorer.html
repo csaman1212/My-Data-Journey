@@ -47,7 +47,7 @@ h3 { margin: 1rem 0 .4rem; font-size: 1rem; }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .8rem; }
 .toolbar label { font-weight: 600; }
-select, input[type="search"], input[type="text"], textarea { background: var(--surface); border: 1px solid var(--line); border-radius: .5rem; padding: .45rem .6rem; }
+select, input[type="search"], input[type="text"], input[type="date"], textarea { background: var(--surface); border: 1px solid var(--line); border-radius: .5rem; padding: .45rem .6rem; }
 textarea { width: 100%; min-height: 11rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: .5rem; padding: .45rem .8rem; font-weight: 600; }
 .btn:hover { border-color: var(--accent); }
@@ -71,6 +71,9 @@ th, td { padding: .45rem .7rem; text-align: left; vertical-align: top; border-bo
 th { position: sticky; top: 0; background: var(--accent-soft); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tr.cfg td { color: var(--cfg); }
+tr.added td:first-child { box-shadow: inset 4px 0 var(--ok); }
+tr.removed td:first-child { box-shadow: inset 4px 0 var(--bad); }
+tr.changed td:first-child { box-shadow: inset 4px 0 var(--warn); }
 .indent { display: flex; align-items: center; gap: .3rem; }
 .tog { border: 0; background: none; width: 1.6rem; height: 1.6rem; border-radius: .3rem; color: var(--accent); font-size: 1rem; }
 .tog:hover { background: var(--accent-soft); }
@@ -78,12 +81,13 @@ tr.cfg td { color: var(--cfg); }
 .link { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; text-align: left; white-space: nowrap; }
 .badge { display: inline-block; border-radius: 999px; padding: 0 .5rem; font-size: .75rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); margin-left: .3rem; white-space: nowrap; }
 .badge.rep { background: var(--warn-bg); color: var(--warn); }
-.badge.cfgb { background: var(--line); color: var(--muted); }
 .muted { color: var(--muted); }
 .thumbbtn { border: 1px solid var(--line); padding: 0; border-radius: .4rem; background: var(--surface); line-height: 0; }
 .thumb { width: 2.6rem; height: 2.6rem; object-fit: cover; border-radius: .35rem; }
 .empty { text-align: center; padding: 2rem 1rem; }
 
+.kitinfo p { margin: .25rem 0; }
+.kitinfo .toolbar { margin-bottom: .4rem; }
 .results { list-style: none; margin: .3rem 0 0; padding: 0; display: grid; gap: .3rem; max-width: 40rem; }
 .results button { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: .5rem; padding: .4rem .7rem; }
 .results button:hover { border-color: var(--accent); }
@@ -106,8 +110,8 @@ dialog { border: 0; border-radius: .75rem; padding: 1rem; max-width: 92vw; backg
 dialog::backdrop { background: rgba(0, 0, 0, .6); }
 dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .6rem; }
 #toast { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); background: var(--text); color: var(--bg); border-radius: .6rem; padding: .55rem 1rem; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); max-width: 90vw; }
-.formrow { display: grid; gap: .3rem; margin-bottom: .8rem; }
-.formrow input[type="text"] { max-width: 26rem; }
+.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .8rem; margin-bottom: .8rem; }
+.formrow { display: grid; gap: .3rem; align-content: start; }
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 </style>
 </head>
@@ -115,7 +119,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 <header>
   <div>
     <h1>Kit Explorer</h1>
-    <p class="sub">Kit parts, sub-parts, quantities and reference pictures from Epicor Method Tracker</p>
+    <p class="sub">Kit parts, sub-parts, revisions, customers and reference pictures from Epicor Method Tracker</p>
   </div>
   <button type="button" id="backupPill" class="pill">Backup: not connected</button>
 </header>
@@ -133,16 +137,29 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   <section id="panel-kits" role="tabpanel" aria-labelledby="tab-kits">
     <div id="kitEmpty" class="card empty" hidden>
       <h2>No kits yet</h2>
-      <p class="hint">Copy a Materials list from Epicor and paste it in the "Add from Epicor" tab, or load the K298 / K344 / K317 example to see how it works.</p>
+      <p class="hint">Copy a Materials list from Epicor and paste it in the "Add from Epicor" tab, or load the example to see how it works.</p>
       <div class="actions" style="justify-content:center">
         <button type="button" class="btn primary" id="emptyExample">Load example</button>
         <button type="button" class="btn" id="emptyAdd">Add from Epicor</button>
       </div>
     </div>
     <div id="kitContent" hidden>
+      <div class="card kitinfo">
+        <div class="toolbar">
+          <label for="kitSelect">Kit</label>
+          <select id="kitSelect"></select>
+          <label for="revSelect">Revision</label>
+          <select id="revSelect"></select>
+          <span id="cmpWrap">
+            <label for="cmpSelect" class="sr">Compare with another revision</label>
+            <select id="cmpSelect"></select>
+          </span>
+          <button type="button" class="btn small" id="editDetails">Edit revision details</button>
+        </div>
+        <div id="kitMeta"></div>
+      </div>
+      <div id="kitDiff"></div>
       <div class="toolbar">
-        <label for="kitSelect">Kit</label>
-        <select id="kitSelect"></select>
         <label for="kitFilter" class="sr">Filter parts</label>
         <input type="search" id="kitFilter" placeholder="Filter by part or description">
         <div class="seg" role="group" aria-label="View">
@@ -156,7 +173,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       <div class="stats" id="kitStats"></div>
       <div class="tablewrap">
         <table>
-          <caption class="sr">Parts in the selected kit</caption>
+          <caption class="sr">Parts in the selected kit revision</caption>
           <thead id="kitHead"></thead>
           <tbody id="kitBody"></tbody>
         </table>
@@ -168,7 +185,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   <section id="panel-lookup" role="tabpanel" aria-labelledby="tab-lookup" hidden>
     <div class="card">
       <h2>Part lookup</h2>
-      <p class="hint">Type a part number or words from the description. Pick a part to see every kit that uses it, where inside the kit, the quantity, and its pictures.</p>
+      <p class="hint">Type a part number or words from the description. Pick a part to see every kit and revision that uses it, with dates, customers, where inside the kit, the quantity, and its pictures.</p>
       <div class="toolbar">
         <label for="partSearch">Part</label>
         <input type="search" id="partSearch" placeholder="e.g. 77-S108 or door sensor" autocomplete="off" size="34">
@@ -180,17 +197,36 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 
   <section id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden>
     <div class="card">
-      <h2>Add an assembly from Epicor</h2>
+      <h2>Add an assembly revision from Epicor</h2>
       <ol class="hint">
-        <li>In Method Tracker click the assembly (the kit, a box, or a part with a little arrow) and open <b>Materials → List</b>.</li>
+        <li>In Method Tracker click the assembly (the kit, a box, or a part with a little arrow). The <b>Revision</b> tab shows its <b>Rev</b> and <b>Effective</b> date. Then open <b>Materials → List</b>.</li>
         <li>Right-click the grid and choose <b>Copy All Include Labels</b>.</li>
-        <li>Type the assembly's part number below, paste into the box, and press <b>Save assembly</b>.</li>
+        <li>Fill in the fields below, paste into the box, and press <b>Save revision</b>. Save each revision of a kit separately to compare them.</li>
       </ol>
       <form id="addForm" novalidate>
-        <div class="formrow">
-          <label for="asmName">Assembly part number (the one you clicked in Epicor)</label>
-          <input type="text" id="asmName" list="knownParts" placeholder="e.g. 77-K298 or 77-K298-BOX-1 or 77-S108" autocomplete="off">
-          <datalist id="knownParts"></datalist>
+        <div class="formgrid">
+          <div class="formrow">
+            <label for="asmName">Assembly part number</label>
+            <input type="text" id="asmName" list="knownParts" placeholder="e.g. 77-K298 or 77-K301" autocomplete="off">
+            <datalist id="knownParts"></datalist>
+          </div>
+          <div class="formrow">
+            <label for="asmRev">Revision (Rev in Epicor)</label>
+            <input type="text" id="asmRev" placeholder="e.g. 2" autocomplete="off">
+          </div>
+          <div class="formrow">
+            <label for="asmEff">Effective date</label>
+            <input type="date" id="asmEff">
+          </div>
+          <div class="formrow">
+            <label for="asmCustomers">Customers (separate with commas)</label>
+            <input type="text" id="asmCustomers" list="knownCustomers" placeholder="e.g. Customer A, Customer B" autocomplete="off">
+            <datalist id="knownCustomers"></datalist>
+          </div>
+          <div class="formrow">
+            <label for="asmNotes">Notes</label>
+            <input type="text" id="asmNotes" placeholder="Optional">
+          </div>
         </div>
         <div class="formrow">
           <label for="asmPaste">Paste the Epicor list here</label>
@@ -198,25 +234,29 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
         </div>
         <p id="addPreview" class="hint" aria-live="polite"></p>
         <div class="actions">
-          <button type="submit" class="btn primary">Save assembly</button>
+          <button type="submit" class="btn primary">Save revision</button>
           <button type="button" class="btn" id="addClear">Clear</button>
         </div>
       </form>
     </div>
     <div class="card">
-      <h2>Saved assemblies</h2>
-      <p class="hint">A part listed inside one assembly is linked automatically to the assembly of the same part number you saved. That is how sub-parts appear under their parent.</p>
+      <h2>Saved revisions</h2>
+      <p class="hint">A part listed inside one assembly is linked automatically to the assembly of the same part number you saved. The effective dates decide which revision of a sub-assembly belongs to which revision of its parent. A revision is used until the next revision's effective date.</p>
       <div class="tablewrap">
         <table>
-          <caption class="sr">Saved assemblies</caption>
-          <thead><tr><th>Assembly</th><th class="num">Items</th><th>Used in</th><th>Saved</th><th>Actions</th></tr></thead>
+          <caption class="sr">Saved assembly revisions</caption>
+          <thead><tr><th>Assembly</th><th>Rev</th><th>Effective</th><th>Customers</th><th class="num">Items</th><th>Used in</th><th>Actions</th></tr></thead>
           <tbody id="libBody"></tbody>
         </table>
       </div>
       <p id="libNone" class="hint" hidden>Nothing saved yet.</p>
       <div class="actions" style="margin-top:.8rem">
-        <button type="button" class="btn" id="loadExample">Load K298 / K344 / K317 example</button>
+        <button type="button" class="btn" id="loadExample">Load example (K298, K301, K344, K317)</button>
       </div>
+    </div>
+    <div class="card">
+      <h2>Customers</h2>
+      <div id="custList"></div>
     </div>
   </section>
 
@@ -259,83 +299,112 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   var PREVIOUS_FILE = 'kit-explorer-backup-previous.json';
   var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-  var EXAMPLE = {
-    '77-K298': [[10, '77-K298-BOX-1', 'BOX 1', 1, 'P'], [20, '77-K298-BOX-2', 'BOX 2', 1, 'P']],
-    '77-K298-BOX-1': [
-      [10, '205-1073-02', '77-7700 ATT, StealthNet using ATT SIM (Thailand) P1.2.1', 1, 'P'],
-      [15, '203-1068-00', 'Trailernet Shipmode Plug', 1, 'P'],
-      [16, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
-      [20, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
-      [30, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P'],
-      [40, '77-H135 192', 'GPS EXTENSION HARNESS MALE TO FEMALE BULLET DROPS .180, 192INCH', 1, 'P'],
-      [50, '77-IS57', '2x FUSE HOLDERS w/ M/F BULLETS, AND GROUND WIRE. NO LOCKING CLIP', 1, 'P'],
-      [60, '206-1019-01', 'HARNESS, TTMA M-F w/ 2x .180 F Drop (77-H390) FTE', 1, 'P'],
-      [70, '206-1034-00', 'HARNESS, EXT M-F BULLETS, DBL INSUL,16FT (77-H317-3 w/o CLIP)', 1, 'P'],
-      [80, '206-1016-00', 'MIDTURN JUMPER HARNESS ADAPTER (77-H317-1 w/o CLIP)', 1, 'P'],
-      [130, '77-IS29', 'Frame Clip Accessory Bag', 2, 'P'],
-      [140, '77-IS20', '25x zipties in baggy', 1, 'P'],
-      [160, '77-X012', 'X012 Configuration', 0, 'M'],
-      [170, '77-Y008', '77-Y008 Configuration', 0, 'M']
-    ],
-    '77-K298-BOX-2': [
-      [10, '77-S108', 'PCT Wireless Door Sensor (swing )', 1, 'P'],
-      [20, '205-1049-01', 'PCT CargoVision Camera, MJK 170 FOV, IR, EVE Battery Merlin P6.1.8', 1, 'P'],
-      [30, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
-      [40, '77-IS73', 'Door Sensor Screw Install Kit, 1-1/4" Bolts', 1, 'P'],
-      [60, '77-IS72', 'Alcohol Prep Pad', 1, 'P'],
-      [70, '77-IS63', 'Cargo Camera Installation Rivets', 1, 'P']
-    ],
-    '77-K344': [
-      [10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P'],
-      [20, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
-      [30, '203-1068-00', 'Trailernet Shipmode Plug', 1, 'P'],
-      [40, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
-      [50, '77-H287', 'Harness, Ext. M-F .180 Bullet, 60FT', 1, 'P'],
-      [60, '77-IS19', 'wire fuse holder, blue heat shrink butt connector and #10 ring terminal', 1, 'P'],
-      [70, '205-1049-01', 'PCT CargoVision Camera, MJK 170 FOV, IR, EVE Battery Merlin P6.1.8', 1, 'P'],
-      [80, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
-      [90, '205-1001-03', 'Door Sensor P3.9.2 (MJK - Vietnam)', 1, 'P'],
-      [100, '77-00207R', 'Door Sensor Magnet', 1, 'P'],
-      [110, '77-IS48', 'Door Sensor Screw Install Kit', 1, 'P'],
-      [120, '77-IS29', 'Frame Clip Accessory Bag', 1, 'P'],
-      [130, '77-IS20', '25x zipties in baggy', 1, 'P'],
-      [140, '77-X015', 'X015 Configuration', 0, 'M'],
-      [150, '77-Y000', '77-Y000 Configuration', 0, 'M']
-    ],
-    '77-K317': [
-      [10, '77-7700', 'StealthNet CAN', 1, 'P'],
-      [20, '77-H371', 'CN-LINKO 3 WIRE POWER HARNESS w/ CAN + RS485', 1, 'P'],
-      [30, '77-S227', 'PLC Reader, Semitech, RS485', 1, 'P'],
-      [40, '77-H287', 'Harness, Ext. M-F .180 Bullet, 60FT', 1, 'P'],
-      [50, '77-IS19', 'wire fuse holder, blue heat shrink butt connector and #10 ring terminal', 1, 'P'],
-      [60, '77-H183', 'DX Y-Splitter, 1M-2F', 1, 'P'],
-      [70, '77-C152', 'DX 120 Ohm Termination Plug', 1, 'P'],
-      [80, '77-H306 274', 'Harness, 274", 53FT Trailer, Rear Power Drop, w/ DX Termination Plug', 1, 'P'],
-      [90, '77-H306', 'Harness, 28FT Trailer, Rear Power Drop, w/ DX Termination Plug', 1, 'P'],
-      [100, '77-S269', 'PCT Puck Camera, Road Side, IR Light, P6.1.7 Camera Board', 1, 'P'],
-      [110, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
-      [120, '77-S108', 'PCT Wireless Door Sensor (swing )', 1, 'P'],
-      [130, '77-IS73', 'Door Sensor Screw Install Kit, 1-1/4" Bolts', 1, 'P'],
-      [140, '77-X012', 'X012 Configuration', 0, 'M'],
-      [150, '77-Y113', '77-Y113 Configuration', 0, 'M'],
-      [160, '77-XS006', '77-XS006 Configuration', 0, 'M']
-    ],
-    '77-S108': [[10, '205-1001-03', 'Door Sensor P3.9.2 (MJK - Vietnam)', 1, 'P']],
-    '77-7700': [[10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P']],
-    '77-S227': [[10, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P']],
-    '77-S269': [[10, '205-1072-00', 'PCT Puck Camera, Road Side, IR Light, P6.1.7 Camera Board', 1, 'P']]
-  };
+  var OLD_BOX1 = [
+    [10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P'],
+    [20, '77-00105R', 'EXIT MODE PLUG', 1, 'P'],
+    [30, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
+    [40, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
+    [50, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P'],
+    [60, '77-H135 192', 'GPS EXTENSION HARNESS MALE TO FEMALE BULLET DROPS .180, 192INCH', 1, 'P'],
+    [70, '77-IS57', '2x FUSE HOLDERS w/ M/F BULLETS, AND GROUND WIRE. NO LOCKING CLIP', 1, 'P'],
+    [80, '206-1019-00', 'HARNESS, TTMA M-F w/ 2x .180 F Drop (77-H390)', 1, 'P'],
+    [90, '206-1034-00', 'HARNESS, EXT M-F BULLETS, DBL INSUL,16FT (77-H317-3 w/o CLIP)', 1, 'P'],
+    [100, '206-1016-00', 'MIDTURN JUMPER HARNESS ADAPTER (77-H317-1 w/o CLIP)', 1, 'P'],
+    [110, '77-IS29', 'Frame Clip Accessory Bag', 2, 'P'],
+    [120, '77-IS20', '25x zipties in baggy', 1, 'P'],
+    [130, '77-X012', 'X012 Configuration', 0, 'M'],
+    [140, '77-Y008', '77-Y008 Configuration', 0, 'M']
+  ];
+  var NEW_BOX1 = [
+    [10, '205-1073-02', '77-7700 ATT, StealthNet using ATT SIM (Thailand) P1.2.1', 1, 'P'],
+    [15, '203-1068-00', 'Trailernet Shipmode Plug', 1, 'P'],
+    [16, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
+    [20, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
+    [30, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P'],
+    [40, '77-H135 192', 'GPS EXTENSION HARNESS MALE TO FEMALE BULLET DROPS .180, 192INCH', 1, 'P'],
+    [50, '77-IS57', '2x FUSE HOLDERS w/ M/F BULLETS, AND GROUND WIRE. NO LOCKING CLIP', 1, 'P'],
+    [60, '206-1019-01', 'HARNESS, TTMA M-F w/ 2x .180 F Drop (77-H390) FTE', 1, 'P'],
+    [70, '206-1034-00', 'HARNESS, EXT M-F BULLETS, DBL INSUL,16FT (77-H317-3 w/o CLIP)', 1, 'P'],
+    [80, '206-1016-00', 'MIDTURN JUMPER HARNESS ADAPTER (77-H317-1 w/o CLIP)', 1, 'P'],
+    [130, '77-IS29', 'Frame Clip Accessory Bag', 2, 'P'],
+    [140, '77-IS20', '25x zipties in baggy', 1, 'P'],
+    [160, '77-X012', 'X012 Configuration', 0, 'M'],
+    [170, '77-Y008', '77-Y008 Configuration', 0, 'M']
+  ];
+  var EXAMPLE_NOTE = 'Example data. Check the revision details against Epicor.';
+  var EXAMPLE = [
+    { name: '77-K298', rev: '2', eff: '2025-10-28', notes: 'BOX 1 + BOX 2', items: [[10, '77-K298-BOX-1', 'BOX 1', 1, 'P'], [20, '77-K298-BOX-2', 'BOX 2', 1, 'P']] },
+    { name: '77-K301', rev: '2', eff: '2025-12-16', notes: 'Kit 1 of K298 (BOX 1 only)', items: [[10, '77-K298-BOX-1', 'BOX 1', 1, 'P']] },
+    { name: '77-K298-BOX-1', rev: '3', eff: '', notes: EXAMPLE_NOTE + ' Older list from the workbook; the revision number is illustrative.', items: OLD_BOX1 },
+    { name: '77-K298-BOX-1', rev: '4', eff: '', notes: EXAMPLE_NOTE, items: NEW_BOX1 },
+    {
+      name: '77-K298-BOX-2', rev: '2', eff: '', notes: EXAMPLE_NOTE, items: [
+        [10, '77-S108', 'PCT Wireless Door Sensor (swing )', 1, 'P'],
+        [20, '205-1049-01', 'PCT CargoVision Camera, MJK 170 FOV, IR, EVE Battery Merlin P6.1.8', 1, 'P'],
+        [30, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
+        [40, '77-IS73', 'Door Sensor Screw Install Kit, 1-1/4" Bolts', 1, 'P'],
+        [60, '77-IS72', 'Alcohol Prep Pad', 1, 'P'],
+        [70, '77-IS63', 'Cargo Camera Installation Rivets', 1, 'P']
+      ]
+    },
+    {
+      name: '77-K344', rev: '1', eff: '', notes: EXAMPLE_NOTE, items: [
+        [10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P'],
+        [20, '77-IS45', 'StealthNet Install Kit', 1, 'P'],
+        [30, '203-1068-00', 'Trailernet Shipmode Plug', 1, 'P'],
+        [40, '77-H227', 'Harness, CN-Linko w/ 3 Drops', 1, 'P'],
+        [50, '77-H287', 'Harness, Ext. M-F .180 Bullet, 60FT', 1, 'P'],
+        [60, '77-IS19', 'wire fuse holder, blue heat shrink butt connector and #10 ring terminal', 1, 'P'],
+        [70, '205-1049-01', 'PCT CargoVision Camera, MJK 170 FOV, IR, EVE Battery Merlin P6.1.8', 1, 'P'],
+        [80, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
+        [90, '205-1001-03', 'Door Sensor P3.9.2 (MJK - Vietnam)', 1, 'P'],
+        [100, '77-00207R', 'Door Sensor Magnet', 1, 'P'],
+        [110, '77-IS48', 'Door Sensor Screw Install Kit', 1, 'P'],
+        [120, '77-IS29', 'Frame Clip Accessory Bag', 1, 'P'],
+        [130, '77-IS20', '25x zipties in baggy', 1, 'P'],
+        [140, '77-X015', 'X015 Configuration', 0, 'M'],
+        [150, '77-Y000', '77-Y000 Configuration', 0, 'M']
+      ]
+    },
+    {
+      name: '77-K317', rev: '1', eff: '', notes: EXAMPLE_NOTE, items: [
+        [10, '77-7700', 'StealthNet CAN', 1, 'P'],
+        [20, '77-H371', 'CN-LINKO 3 WIRE POWER HARNESS w/ CAN + RS485', 1, 'P'],
+        [30, '77-S227', 'PLC Reader, Semitech, RS485', 1, 'P'],
+        [40, '77-H287', 'Harness, Ext. M-F .180 Bullet, 60FT', 1, 'P'],
+        [50, '77-IS19', 'wire fuse holder, blue heat shrink butt connector and #10 ring terminal', 1, 'P'],
+        [60, '77-H183', 'DX Y-Splitter, 1M-2F', 1, 'P'],
+        [70, '77-C152', 'DX 120 Ohm Termination Plug', 1, 'P'],
+        [80, '77-H306 274', 'Harness, 274", 53FT Trailer, Rear Power Drop, w/ DX Termination Plug', 1, 'P'],
+        [90, '77-H306', 'Harness, 28FT Trailer, Rear Power Drop, w/ DX Termination Plug', 1, 'P'],
+        [100, '77-S269', 'PCT Puck Camera, Road Side, IR Light, P6.1.7 Camera Board', 1, 'P'],
+        [110, '77-C181', 'CargoVision Shield + VHB + Rivets', 1, 'P'],
+        [120, '77-S108', 'PCT Wireless Door Sensor (swing )', 1, 'P'],
+        [130, '77-IS73', 'Door Sensor Screw Install Kit, 1-1/4" Bolts', 1, 'P'],
+        [140, '77-X012', 'X012 Configuration', 0, 'M'],
+        [150, '77-Y113', '77-Y113 Configuration', 0, 'M'],
+        [160, '77-XS006', '77-XS006 Configuration', 0, 'M']
+      ]
+    },
+    { name: '77-S108', rev: '1', eff: '', notes: EXAMPLE_NOTE, items: [[10, '205-1001-03', 'Door Sensor P3.9.2 (MJK - Vietnam)', 1, 'P']] },
+    { name: '77-7700', rev: '1', eff: '', notes: EXAMPLE_NOTE, items: [[10, '205-1023-03', 'StealthNet CAN Assembly w/ TrailerBoard (ATEL - Vietnam)', 1, 'P']] },
+    { name: '77-S227', rev: '1', eff: '', notes: EXAMPLE_NOTE, items: [[10, '205-1057-00', 'PLC Reader, Potted RS485, DX', 1, 'P']] },
+    { name: '77-S269', rev: '1', eff: '', notes: EXAMPLE_NOTE, items: [[10, '205-1072-00', 'PCT Puck Camera, Road Side, IR Light, P6.1.7 Camera Board', 1, 'P']] }
+  ];
 
   var $ = function (id) { return document.getElementById(id); };
   var els = {
     tabs: $('tabs'), backupPill: $('backupPill'), storageWarn: $('storageWarn'),
-    kitEmpty: $('kitEmpty'), kitContent: $('kitContent'), kitSelect: $('kitSelect'), kitFilter: $('kitFilter'),
-    viewTree: $('viewTree'), viewFlat: $('viewFlat'), expandAll: $('expandAll'), collapseAll: $('collapseAll'),
+    kitEmpty: $('kitEmpty'), kitContent: $('kitContent'), kitSelect: $('kitSelect'), revSelect: $('revSelect'),
+    cmpWrap: $('cmpWrap'), cmpSelect: $('cmpSelect'), editDetails: $('editDetails'), kitMeta: $('kitMeta'), kitDiff: $('kitDiff'),
+    kitFilter: $('kitFilter'), viewTree: $('viewTree'), viewFlat: $('viewFlat'), expandAll: $('expandAll'), collapseAll: $('collapseAll'),
     hideConfig: $('hideConfig'), kitStats: $('kitStats'), kitHead: $('kitHead'), kitBody: $('kitBody'), kitNone: $('kitNone'),
     emptyExample: $('emptyExample'), emptyAdd: $('emptyAdd'),
     partSearch: $('partSearch'), partResults: $('partResults'), partDetail: $('partDetail'),
-    addForm: $('addForm'), asmName: $('asmName'), asmPaste: $('asmPaste'), addPreview: $('addPreview'), addClear: $('addClear'),
-    knownParts: $('knownParts'), libBody: $('libBody'), libNone: $('libNone'), loadExample: $('loadExample'),
+    addForm: $('addForm'), asmName: $('asmName'), asmRev: $('asmRev'), asmEff: $('asmEff'), asmCustomers: $('asmCustomers'),
+    asmNotes: $('asmNotes'), asmPaste: $('asmPaste'), addPreview: $('addPreview'), addClear: $('addClear'),
+    knownParts: $('knownParts'), knownCustomers: $('knownCustomers'), libBody: $('libBody'), libNone: $('libNone'),
+    custList: $('custList'), loadExample: $('loadExample'),
     backupStatus: $('backupStatus'), btnConnect: $('btnConnect'), btnReconnect: $('btnReconnect'),
     btnBackupNow: $('btnBackupNow'), btnDisconnect: $('btnDisconnect'), btnExport: $('btnExport'),
     restoreInput: $('restoreInput'), restoreLabel: $('restoreLabel'),
@@ -344,7 +413,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   var tabNames = ['kits', 'lookup', 'library', 'backup'];
 
   var state = {
-    assemblies: {}, images: {}, kit: '', checkKit: '', view: 'tree', tab: 'kits',
+    assemblies: {}, images: {}, kit: '', rev: '', cmp: '', checkKit: '', checkRev: '', view: 'tree', tab: 'kits',
     selectedPart: '', expanded: new Map()
   };
   var model = null;
@@ -373,8 +442,15 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     return e;
   }
   function normPart(s) { return String(s === null || s === undefined ? '' : s).replace(/\s+/g, ' ').trim().toUpperCase(); }
+  function normRev(s) { return String(s === null || s === undefined ? '' : s).replace(/\s+/g, ' ').trim(); }
   function round6(n) { return Math.round(n * 1e6) / 1e6; }
   function fmt(n) { return String(parseFloat(Number(n).toFixed(4))); }
+  function isDate(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s); }
+  function dateText(s) {
+    if (!isDate(s)) { return ''; }
+    var p = s.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString([], { dateStyle: 'medium' });
+  }
   function toast(msg) {
     els.toast.textContent = msg;
     els.toast.hidden = false;
@@ -386,6 +462,39 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     return d && !isNaN(d.getTime()) ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
   }
   function clock(d) { return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+  function parseCustomers(text) {
+    var seen = {}, out = [];
+    String(text || '').split(/[,;]/).forEach(function (c) {
+      var name = c.replace(/\s+/g, ' ').trim();
+      if (name && !seen[name.toLowerCase()]) { seen[name.toLowerCase()] = true; out.push(name); }
+    });
+    return out;
+  }
+
+  /* ---------- revisions ---------- */
+  function revsOf(name) { return state.assemblies[name].revs; }
+  function findRev(name, rev) {
+    var list = state.assemblies[name] ? revsOf(name) : [];
+    for (var i = 0; i < list.length; i++) { if (list[i].rev === rev) { return list[i]; } }
+    return null;
+  }
+  function latestRev(name) { var list = revsOf(name); return list[list.length - 1]; }
+  function pickRev(name, asOf) {
+    var list = revsOf(name);
+    if (!asOf) { return list[list.length - 1]; }
+    var ok = list.filter(function (r) { return !r.effective || r.effective <= asOf; });
+    return ok.length ? ok[ok.length - 1] : list[0];
+  }
+  function sortRevs(asm) { asm.revs.sort(function (a, b) { return collator.compare(a.rev, b.rev); }); }
+  function revLabel(name, r) { return revsOf(name).length > 1 ? name + ' (rev ' + r.rev + ')' : name; }
+  function periodText(name, r) {
+    var list = revsOf(name);
+    var next = list[list.indexOf(r) + 1];
+    var from = r.effective ? dateText(r.effective) : 'date not set';
+    var to = !next ? 'now (latest revision)' : (next.effective ? dateText(next.effective) + ' (replaced by rev ' + next.rev + ')' : 'rev ' + next.rev + ' (no date set)');
+    return from + ' → ' + to;
+  }
+  function customersText(r) { return r.customers.length ? r.customers.join(', ') : '—'; }
 
   /* ---------- storage (IndexedDB) ---------- */
   var idb = {
@@ -428,25 +537,40 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     }
   };
 
+  function sanitizeItems(list) {
+    var items = [];
+    (Array.isArray(list) ? list : []).forEach(function (it) {
+      var part = normPart(it && it.part);
+      var qty = Number(it && it.qty);
+      if (!part) { return; }
+      items.push({
+        mtl: it.mtl === null || it.mtl === undefined || isNaN(Number(it.mtl)) ? null : Number(it.mtl),
+        part: part, desc: String(it.desc || ''), qty: isFinite(qty) ? qty : 1,
+        type: String(it.type || '').charAt(0).toUpperCase()
+      });
+    });
+    return items;
+  }
   function sanitizeAssemblies(obj) {
     var out = {};
     if (!obj || typeof obj !== 'object') { return out; }
     Object.keys(obj).forEach(function (rawName) {
       var name = normPart(rawName);
       var src = obj[rawName];
-      if (!name || !src || !Array.isArray(src.items)) { return; }
-      var items = [];
-      src.items.forEach(function (it) {
-        var part = normPart(it && it.part);
-        var qty = Number(it && it.qty);
-        if (!part) { return; }
-        items.push({
-          mtl: it.mtl === null || it.mtl === undefined || isNaN(Number(it.mtl)) ? null : Number(it.mtl),
-          part: part, desc: String(it.desc || ''), qty: isFinite(qty) ? qty : 1,
-          type: String(it.type || '').charAt(0).toUpperCase()
+      if (!name || !src || typeof src !== 'object') { return; }
+      var revSrc = Array.isArray(src.revs) ? src.revs : (Array.isArray(src.items) ? [{ rev: '1', items: src.items, updated: src.updated }] : []);
+      var revs = [];
+      revSrc.forEach(function (r) {
+        var rev = normRev(r && r.rev) || '1';
+        if (revs.some(function (x) { return x.rev === rev; })) { return; }
+        revs.push({
+          rev: rev, items: sanitizeItems(r.items), effective: isDate(r.effective) ? r.effective : '',
+          customers: parseCustomers(Array.isArray(r.customers) ? r.customers.join(',') : ''),
+          notes: String(r.notes || ''), updated: typeof r.updated === 'string' ? r.updated : ''
         });
       });
-      out[name] = { items: items, updated: typeof src.updated === 'string' ? src.updated : '' };
+      revs = revs.filter(function (r) { return r.items.length; });
+      if (revs.length) { out[name] = { revs: revs }; sortRevs(out[name]); }
     });
     return out;
   }
@@ -516,50 +640,68 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   function rebuild() {
     var A = state.assemblies;
     var names = Object.keys(A);
-    var desc = new Map(), parentsOf = new Map();
+    var desc = new Map(), parentsOf = new Map(), customers = new Set();
     names.forEach(function (name) {
-      A[name].items.forEach(function (it) {
-        if (it.desc && !desc.has(it.part)) { desc.set(it.part, it.desc); }
-        if (!parentsOf.has(it.part)) { parentsOf.set(it.part, new Set()); }
-        parentsOf.get(it.part).add(name);
+      A[name].revs.forEach(function (r) {
+        r.customers.forEach(function (c) { customers.add(c); });
+        r.items.forEach(function (it) {
+          if (it.desc) { desc.set(it.part, it.desc); }
+          if (!parentsOf.has(it.part)) { parentsOf.set(it.part, new Set()); }
+          parentsOf.get(it.part).add(name);
+        });
       });
     });
     var roots = names.filter(function (n) { return !parentsOf.has(n); }).sort(collator.compare);
     if (!roots.length) { roots = names.slice().sort(collator.compare); }
-    model = { desc: desc, parentsOf: parentsOf, roots: roots, flatCache: new Map(), usage: new Map(), aliases: new Map() };
-    roots.forEach(function (root) {
-      flatten(root).forEach(function (entry, part) {
+    model = {
+      desc: desc, parentsOf: parentsOf, roots: roots, customers: Array.from(customers).sort(collator.compare),
+      flatCache: new Map(), usage: new Map(), aliases: new Map(), reached: new Set()
+    };
+    var addUsage = function (name, r, orphan) {
+      flatten(name, r).forEach(function (entry, part) {
         if (!model.usage.has(part)) { model.usage.set(part, []); }
-        model.usage.get(part).push({ kit: root, total: entry.total, places: entry.places });
+        model.usage.get(part).push({ kit: name, rev: r, total: entry.total, places: entry.places, orphan: orphan });
       });
+    };
+    roots.forEach(function (root) { revsOf(root).forEach(function (r) { addUsage(root, r, false); }); });
+    names.filter(function (n) { return roots.indexOf(n) < 0; }).forEach(function (n) {
+      var stray = revsOf(n).some(function (r) { return !model.reached.has(n + '|' + r.rev); });
+      if (stray) { revsOf(n).forEach(function (r) { addUsage(n, r, true); }); }
     });
-    buildAliases(names, roots);
-    if (!A[state.kit]) { state.kit = roots[0] || ''; }
-    if (!A[state.checkKit]) { state.checkKit = state.kit; }
+    buildAliases(names);
+    if (!A[state.kit]) { state.kit = roots[0] || ''; state.rev = ''; }
+    if (state.kit && !findRev(state.kit, state.rev)) { state.rev = latestRev(state.kit).rev; }
+    if (!A[state.checkKit]) { state.checkKit = state.kit; state.checkRev = ''; }
+    if (state.checkKit && !findRev(state.checkKit, state.checkRev)) { state.checkRev = latestRev(state.checkKit).rev; }
+    if (!state.kit || !findRev(state.kit, state.cmp) || state.cmp === state.rev) { state.cmp = ''; }
   }
-  function flatten(name) {
-    if (model.flatCache.has(name)) { return model.flatCache.get(name); }
+  function flatten(name, revObj) {
+    var key = name + '|' + revObj.rev;
+    if (model.flatCache.has(key)) { return model.flatCache.get(key); }
     var out = new Map();
     var A = state.assemblies;
-    var walk = function (asm, mult, trail, stack) {
-      A[asm].items.forEach(function (it) {
+    var asOf = revObj.effective;
+    var walk = function (items, mult, trail, stack) {
+      items.forEach(function (it) {
         var total = round6(mult * it.qty);
         var entry = out.get(it.part);
         if (!entry) { entry = { total: 0, places: [] }; out.set(it.part, entry); }
         entry.total = round6(entry.total + total);
         entry.places.push({ trail: trail.slice(), qty: it.qty, total: total, type: it.type });
         if (A[it.part] && !stack.has(it.part)) {
-          stack.add(it.part); trail.push(it.part);
-          walk(it.part, total, trail, stack);
+          var child = pickRev(it.part, asOf);
+          model.reached.add(it.part + '|' + child.rev);
+          stack.add(it.part); trail.push(revLabel(it.part, child));
+          walk(child.items, total, trail, stack);
           trail.pop(); stack.delete(it.part);
         }
       });
     };
-    if (A[name]) { walk(name, 1, [], new Set([name])); }
-    model.flatCache.set(name, out);
+    walk(revObj.items, 1, [], new Set([name]));
+    model.flatCache.set(key, out);
     return out;
   }
-  function buildAliases(names, roots) {
+  function buildAliases(names) {
     var adj = new Map();
     var link = function (a, b) {
       if (!adj.has(a)) { adj.set(a, new Set()); }
@@ -567,9 +709,10 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       adj.get(a).add(b); adj.get(b).add(a);
     };
     names.forEach(function (name) {
-      if (roots.indexOf(name) > -1) { return; }
-      var real = state.assemblies[name].items.filter(function (it) { return it.type !== 'M' && it.qty > 0; });
-      if (real.length === 1 && real[0].qty === 1 && real[0].part !== name) { link(name, real[0].part); }
+      state.assemblies[name].revs.forEach(function (r) {
+        var real = r.items.filter(function (it) { return it.type !== 'M' && it.qty > 0; });
+        if (real.length === 1 && real[0].qty === 1 && real[0].part !== name) { link(name, real[0].part); }
+      });
     });
     adj.forEach(function (_, start) {
       if (model.aliases.has(start)) { return; }
@@ -583,26 +726,29 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     });
   }
   function aliasesOf(part) { return model.aliases.get(part) || []; }
-  function buildTree(name) {
+  function buildTree(name, revObj) {
     var A = state.assemblies;
+    var asOf = revObj.effective;
     var out = [];
-    var walk = function (asm, mult, depth, prefix, stack, list) {
-      A[asm].items.forEach(function (it, idx) {
+    var walk = function (items, mult, depth, prefix, stack, list) {
+      items.forEach(function (it, idx) {
         var total = round6(mult * it.qty);
         var id = prefix + '/' + idx;
         var isAsm = !!A[it.part];
         var node = {
           id: id, part: it.part, desc: it.desc || model.desc.get(it.part) || '', qty: it.qty, total: total,
-          type: it.type, depth: depth, isAsm: isAsm, loop: false, children: []
+          type: it.type, depth: depth, isAsm: isAsm, loop: false, rev: '', revCount: 0, children: []
         };
         if (isAsm) {
+          var child = pickRev(it.part, asOf);
+          node.rev = child.rev; node.revCount = revsOf(it.part).length;
           if (stack.has(it.part)) { node.loop = true; }
-          else { stack.add(it.part); walk(it.part, total, depth + 1, id, stack, node.children); stack.delete(it.part); }
+          else { stack.add(it.part); walk(child.items, total, depth + 1, id, stack, node.children); stack.delete(it.part); }
         }
         list.push(node);
       });
     };
-    walk(name, 1, 0, name, new Set([name]), out);
+    walk(revObj.items, 1, 0, name + '|' + revObj.rev, new Set([name]), out);
     return out;
   }
   function allParts() {
@@ -612,6 +758,20 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   }
   function descOf(part) { return model.desc.get(part) || ''; }
   function placeText(p) { return p.trail.length ? p.trail.join(' › ') : 'Directly in the kit'; }
+  function kitsUsing(part, withStray) {
+    var seen = [];
+    (model.usage.get(part) || []).forEach(function (u) { if ((withStray || !u.orphan) && seen.indexOf(u.kit) < 0) { seen.push(u.kit); } });
+    return seen;
+  }
+  function openKit(name, rev) {
+    state.kit = name;
+    state.rev = rev || '';
+    state.checkKit = name;
+    state.checkRev = '';
+    state.cmp = '';
+    rebuild();
+    showTab('kits');
+  }
 
   /* ---------- persistence + backup ---------- */
   function changed() {
@@ -621,7 +781,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     saveTimer = setTimeout(persistAll, 900);
   }
   function backupPayload() {
-    return { app: 'kit-explorer', version: 1, savedAt: new Date().toISOString(), assemblies: state.assemblies, images: state.images };
+    return { app: 'kit-explorer', version: 2, savedAt: new Date().toISOString(), assemblies: state.assemblies, images: state.images };
   }
   async function persistAll() {
     await idb.set('assemblies', state.assemblies);
@@ -650,7 +810,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     try {
       var fh = await handle.getFileHandle(BACKUP_FILE);
       var file = await fh.getFile();
-      return { text: await file.text(), modified: file.lastModified };
+      return { text: await file.text() };
     } catch (e) { return null; }
   }
   function applyBackup(data) {
@@ -809,16 +969,22 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     renderLibrary();
     renderBackup();
   }
-  function fillSelect(select, value) {
+  function fillKitSelect(select, value) {
     select.textContent = '';
     var kits = h('optgroup', { label: 'Kits' });
     var subs = h('optgroup', { label: 'Sub-assemblies and boxes' });
     Object.keys(state.assemblies).sort(collator.compare).forEach(function (n) {
-      var opt = h('option', { value: n }, n);
-      (model.roots.indexOf(n) > -1 ? kits : subs).appendChild(opt);
+      (model.roots.indexOf(n) > -1 ? kits : subs).appendChild(h('option', { value: n }, n));
     });
     select.appendChild(kits);
     if (subs.children.length) { select.appendChild(subs); }
+    select.value = value;
+  }
+  function fillRevSelect(select, name, value) {
+    select.textContent = '';
+    revsOf(name).slice().reverse().forEach(function (r, i) {
+      select.appendChild(h('option', { value: r.rev }, 'Rev ' + r.rev + (i === 0 ? ' (latest)' : '') + (r.effective ? ' · ' + dateText(r.effective) : '')));
+    });
     select.value = value;
   }
   function openPart(part) {
@@ -829,7 +995,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     $('partDetail').scrollIntoView({ block: 'start' });
   }
   function alsoInText(part, kit) {
-    var kits = (model.usage.get(part) || []).filter(function (u) { return u.kit !== kit; }).map(function (u) { return u.kit; });
+    var kits = kitsUsing(part).filter(function (k) { return k !== kit; });
     return kits.length ? kits.join(', ') : '—';
   }
 
@@ -845,9 +1011,12 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.kitEmpty.hidden = has;
     els.kitContent.hidden = !has;
     if (!has) { return; }
-    fillSelect(els.kitSelect, state.kit);
     var kit = state.kit;
-    var flat = flatten(kit);
+    var revObj = findRev(kit, state.rev);
+    fillKitSelect(els.kitSelect, kit);
+    renderKitInfo(kit, revObj);
+    renderDiff(kit, revObj);
+    var flat = flatten(kit, revObj);
     var q = els.kitFilter.value.trim().toLowerCase();
     var hideM = els.hideConfig.checked;
     var treeView = state.view === 'tree';
@@ -855,7 +1024,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.viewFlat.setAttribute('aria-pressed', String(!treeView));
     els.expandAll.hidden = !treeView;
     els.collapseAll.hidden = !treeView;
-    renderStats(kit, flat);
+    renderStats(flat);
 
     var headCols = treeView
       ? [['Part', ''], ['Description', ''], ['Qty / parent', 'num'], ['Total in kit', 'num'], ['Type', ''], ['Also in', ''], ['Picture', '']]
@@ -867,7 +1036,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     var frag = document.createDocumentFragment();
     var count = 0;
     if (treeView) {
-      var tree = buildTree(kit);
+      var tree = buildTree(kit, revObj);
       var matches = function (n) { return !q || n.part.toLowerCase().indexOf(q) > -1 || n.desc.toLowerCase().indexOf(q) > -1; };
       var visible = function (n) { return !(hideM && n.type === 'M') && (matches(n) || n.children.some(visible)); };
       var emit = function (nodes) {
@@ -910,6 +1079,54 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.kitBody.appendChild(frag);
     els.kitNone.hidden = count > 0;
   }
+  function renderKitInfo(kit, revObj) {
+    fillRevSelect(els.revSelect, kit, revObj.rev);
+    var others = revsOf(kit).filter(function (r) { return r !== revObj; }).reverse();
+    els.cmpWrap.hidden = !others.length;
+    els.cmpSelect.textContent = '';
+    els.cmpSelect.appendChild(h('option', { value: '' }, 'Compare with…'));
+    others.forEach(function (r) { els.cmpSelect.appendChild(h('option', { value: r.rev }, 'Rev ' + r.rev + (r.effective ? ' · ' + dateText(r.effective) : ''))); });
+    els.cmpSelect.value = state.cmp;
+    els.kitMeta.textContent = '';
+    els.kitMeta.appendChild(h('p', null, h('b', null, 'Used: '), periodText(kit, revObj)));
+    els.kitMeta.appendChild(h('p', null, h('b', null, 'Customers: '), revObj.customers.length ? revObj.customers.join(', ') : 'none set. Press "Edit revision details" to add them.'));
+    if (revObj.notes) { els.kitMeta.appendChild(h('p', { class: 'muted' }, revObj.notes)); }
+    var same = aliasesOf(kit);
+    if (same.length) { els.kitMeta.appendChild(h('p', null, h('b', null, 'Same as: '), same.join(', '))); }
+  }
+  function renderDiff(kit, revObj) {
+    els.kitDiff.textContent = '';
+    var other = state.cmp ? findRev(kit, state.cmp) : null;
+    if (!other) { return; }
+    var a = flatten(kit, other), b = flatten(kit, revObj);
+    var leaf = function (m) { return Array.from(m.keys()).filter(function (p) { return !state.assemblies[p]; }); };
+    var all = new Set(leaf(a).concat(leaf(b)));
+    var rows = [];
+    Array.from(all).sort(collator.compare).forEach(function (p) {
+      var qa = a.has(p) ? a.get(p).total : 0, qb = b.has(p) ? b.get(p).total : 0;
+      if (a.has(p) && !b.has(p)) { rows.push(['removed', 'Removed', p, qa, '—']); }
+      else if (!a.has(p) && b.has(p)) { rows.push(['added', 'Added', p, '—', qb]); }
+      else if (qa !== qb) { rows.push(['changed', 'Qty changed', p, qa, qb]); }
+    });
+    var card = h('div', { class: 'card' }, h('h2', null, 'Rev ' + other.rev + ' → Rev ' + revObj.rev + ' (selected)'));
+    if (!rows.length) {
+      card.appendChild(h('p', { class: 'hint' }, 'No difference in parts or quantities.'));
+    } else {
+      var body = h('tbody');
+      rows.forEach(function (r) {
+        body.appendChild(h('tr', { class: r[0] },
+          h('td', null, r[1]),
+          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(r[2]); } }, r[2])),
+          h('td', null, descOf(r[2])),
+          h('td', { class: 'num' }, typeof r[3] === 'number' ? fmt(r[3]) : r[3]),
+          h('td', { class: 'num' }, typeof r[4] === 'number' ? fmt(r[4]) : r[4])));
+      });
+      card.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
+        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Change'), h('th', { scope: 'col' }, 'Part'), h('th', { scope: 'col' }, 'Description'),
+          h('th', { scope: 'col', class: 'num' }, 'Rev ' + other.rev + ' qty'), h('th', { scope: 'col', class: 'num' }, 'Rev ' + revObj.rev + ' qty'))), body)));
+    }
+    els.kitDiff.appendChild(card);
+  }
   function treeRow(n, flat, open, kit) {
     var toggle = n.children.length
       ? h('button', {
@@ -919,11 +1136,13 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       : h('span', { class: 'tog-sp' });
     var entry = flat.get(n.part);
     var repeats = !n.isAsm && entry && entry.places.length > 1;
+    var asmBadge = null;
+    if (n.isAsm) { asmBadge = h('span', { class: 'badge' }, n.loop ? 'loop' : (n.revCount > 1 ? 'assembly · rev ' + n.rev : 'assembly')); }
     return h('tr', { class: n.type === 'M' ? 'cfg' : '' },
       h('td', null, h('div', { class: 'indent', style: 'padding-left:' + (n.depth * 1.4) + 'rem' },
         toggle,
         h('button', { type: 'button', class: 'link', onclick: function () { openPart(n.part); } }, n.part),
-        n.isAsm ? h('span', { class: 'badge' }, n.children.length ? 'assembly' : 'loop') : null,
+        asmBadge,
         repeats ? h('span', { class: 'badge rep', title: 'This part appears in ' + entry.places.length + ' places in this kit' }, '×' + entry.places.length) : null)),
       h('td', null, n.desc),
       h('td', { class: 'num' }, fmt(n.qty)),
@@ -932,7 +1151,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       h('td', null, alsoInText(n.part, kit)),
       h('td', null, thumbCell(n.part)));
   }
-  function renderStats(kit, flat) {
+  function renderStats(flat) {
     var leaf = Array.from(flat.keys()).filter(function (p) { return !state.assemblies[p]; });
     var pieces = 0, repeated = 0, shared = 0;
     leaf.forEach(function (p) {
@@ -940,7 +1159,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       var isCfg = e.places.every(function (pl) { return pl.type === 'M'; });
       if (!isCfg) { pieces = round6(pieces + e.total); }
       if (e.places.length > 1) { repeated++; }
-      if ((model.usage.get(p) || []).length > 1) { shared++; }
+      if (kitsUsing(p).length > 1) { shared++; }
     });
     els.kitStats.textContent = '';
     [[leaf.length, 'distinct parts'], [fmt(pieces), 'physical pieces (type M excluded)'], [repeated, 'repeat inside this kit'], [shared, 'also used in another kit']]
@@ -966,6 +1185,10 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     });
     if (els.partSearch.value.trim() && !list.length) { els.partResults.appendChild(h('li', { class: 'hint' }, 'No part matches that.')); }
   }
+  function simpleTable(headers, body) {
+    return h('div', { class: 'tablewrap' }, h('table', null,
+      h('thead', null, h.apply(null, ['tr', null].concat(headers.map(function (x) { return h('th', { scope: 'col', class: x[1] }, x[0]); })))), body));
+  }
   function renderLookup() {
     var box = els.partDetail;
     var part = state.selectedPart;
@@ -984,18 +1207,21 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       box.appendChild(h('h3', null, 'Same physical part, other number'));
       var chips = h('div', { class: 'chips' });
       aliases.forEach(function (a) {
-        var kits = (model.usage.get(a) || []).map(function (u) { return u.kit; });
+        var kits = kitsUsing(a);
         chips.appendChild(h('button', { type: 'button', class: 'btn small', onclick: function () { openPart(a); } }, a + (kits.length ? ' — ' + kits.join(', ') : '')));
       });
       box.appendChild(chips);
     }
 
     box.appendChild(h('h3', null, 'Is it in the kit I am checking?'));
-    var select = h('select', { id: 'checkKit', 'aria-label': 'Kit to check against' });
-    fillSelect(select, state.checkKit);
-    select.addEventListener('change', function () { state.checkKit = select.value; renderLookup(); });
-    box.appendChild(h('div', { class: 'toolbar' }, h('label', { for: 'checkKit' }, 'Kit'), select));
-    box.appendChild(checkResult(part, state.checkKit));
+    var kitSel = h('select', { id: 'checkKit', 'aria-label': 'Kit to check against' });
+    fillKitSelect(kitSel, state.checkKit);
+    kitSel.addEventListener('change', function () { state.checkKit = kitSel.value; state.checkRev = latestRev(kitSel.value).rev; renderLookup(); });
+    var revSel = h('select', { id: 'checkRev', 'aria-label': 'Revision to check against' });
+    fillRevSelect(revSel, state.checkKit, state.checkRev);
+    revSel.addEventListener('change', function () { state.checkRev = revSel.value; renderLookup(); });
+    box.appendChild(h('div', { class: 'toolbar' }, h('label', { for: 'checkKit' }, 'Kit'), kitSel, h('label', { for: 'checkRev' }, 'Revision'), revSel));
+    box.appendChild(checkResult(part, state.checkKit, findRev(state.checkKit, state.checkRev)));
 
     box.appendChild(h('h3', null, 'Pictures'));
     var gallery = h('div', { class: 'gallery' });
@@ -1018,21 +1244,27 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     });
     box.appendChild(drop);
 
-    box.appendChild(h('h3', null, 'Used in kits'));
+    box.appendChild(h('h3', null, 'Used in kits and revisions'));
     if (usage.length) {
       var body = h('tbody');
-      usage.forEach(function (u) {
-        var where = h('td');
-        u.places.forEach(function (pl, i) {
-          if (i) { where.appendChild(document.createElement('br')); }
-          where.appendChild(document.createTextNode(placeText(pl) + ' — ' + fmt(pl.qty) + ' per parent, ' + fmt(pl.total) + ' in kit'));
+      kitsUsing(part, true).forEach(function (kit) {
+        revsOf(kit).slice().reverse().forEach(function (r) {
+          var u = usage.filter(function (x) { return x.kit === kit && x.rev === r; })[0];
+          var where = h('td');
+          if (u) {
+            u.places.forEach(function (pl, i) {
+              if (i) { where.appendChild(document.createElement('br')); }
+              where.appendChild(document.createTextNode(placeText(pl) + ' — ' + fmt(pl.qty) + ' per parent, ' + fmt(pl.total) + ' in kit'));
+            });
+          } else { where.appendChild(h('span', { class: 'muted' }, 'not in this revision')); }
+          body.appendChild(h('tr', { class: u ? '' : 'cfg' },
+            h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openKit(kit, r.rev); } }, kit),
+              model.roots.indexOf(kit) < 0 ? h('span', { class: 'badge' }, 'sub-assembly') : null),
+            h('td', null, r.rev), h('td', null, periodText(kit, r)), h('td', null, customersText(r)),
+            h('td', { class: 'num' }, u ? fmt(u.total) : '—'), where));
         });
-        body.appendChild(h('tr', null,
-          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { state.kit = u.kit; showTab('kits'); } }, u.kit)),
-          h('td', { class: 'num' }, fmt(u.total)), where));
       });
-      box.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
-        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Kit'), h('th', { scope: 'col', class: 'num' }, 'Total'), h('th', { scope: 'col' }, 'Where'))), body)));
+      box.appendChild(simpleTable([['Kit', ''], ['Rev', ''], ['Used', ''], ['Customers', ''], ['Total', 'num'], ['Where', '']], body));
     } else {
       box.appendChild(h('p', { class: 'hint' }, 'Not used in any saved kit.'));
     }
@@ -1041,54 +1273,66 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       box.appendChild(h('h3', null, 'Directly inside'));
       var pbody = h('tbody');
       parents.forEach(function (pa) {
-        state.assemblies[pa].items.filter(function (it) { return it.part === part; }).forEach(function (it) {
-          pbody.appendChild(h('tr', null,
-            h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(pa); } }, pa)),
-            h('td', { class: 'num' }, fmt(it.qty)), h('td', null, it.type || ''), h('td', { class: 'num' }, it.mtl === null ? '' : String(it.mtl))));
+        revsOf(pa).slice().reverse().forEach(function (r) {
+          r.items.filter(function (it) { return it.part === part; }).forEach(function (it) {
+            pbody.appendChild(h('tr', null,
+              h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(pa); } }, pa)),
+              h('td', null, r.rev), h('td', { class: 'num' }, fmt(it.qty)), h('td', null, it.type || ''), h('td', { class: 'num' }, it.mtl === null ? '' : String(it.mtl))));
+          });
         });
       });
-      box.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
-        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Assembly'), h('th', { scope: 'col', class: 'num' }, 'Qty / parent'), h('th', { scope: 'col' }, 'Type'), h('th', { scope: 'col', class: 'num' }, 'Mtl'))), pbody)));
+      box.appendChild(simpleTable([['Assembly', ''], ['Rev', ''], ['Qty / parent', 'num'], ['Type', ''], ['Mtl', 'num']], pbody));
     }
 
     if (isAsm) {
       box.appendChild(h('h3', null, 'Contains'));
-      var cbody = h('tbody');
-      state.assemblies[part].items.forEach(function (it) {
-        cbody.appendChild(h('tr', { class: it.type === 'M' ? 'cfg' : '' },
-          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(it.part); } }, it.part)),
-          h('td', null, it.desc || descOf(it.part)), h('td', { class: 'num' }, fmt(it.qty)), h('td', null, it.type || '')));
+      revsOf(part).slice().reverse().forEach(function (r) {
+        box.appendChild(h('p', { class: 'hint' }, 'Rev ' + r.rev + ' · ' + periodText(part, r)));
+        var cbody = h('tbody');
+        r.items.forEach(function (it) {
+          cbody.appendChild(h('tr', { class: it.type === 'M' ? 'cfg' : '' },
+            h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openPart(it.part); } }, it.part)),
+            h('td', null, it.desc || descOf(it.part)), h('td', { class: 'num' }, fmt(it.qty)), h('td', null, it.type || '')));
+        });
+        box.appendChild(simpleTable([['Part', ''], ['Description', ''], ['Qty', 'num'], ['Type', '']], cbody));
       });
-      box.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
-        h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Part'), h('th', { scope: 'col' }, 'Description'), h('th', { scope: 'col', class: 'num' }, 'Qty'), h('th', { scope: 'col' }, 'Type'))), cbody)));
     }
   }
-  function checkResult(part, kit) {
+  function checkResult(part, kit, revObj) {
     var box = h('div', { class: 'check', role: 'status' });
-    if (!kit || !state.assemblies[kit]) { box.classList.add('warn'); box.textContent = 'Pick a kit to check.'; return box; }
+    if (!kit || !revObj) { box.classList.add('warn'); box.textContent = 'Pick a kit to check.'; return box; }
     if (part === kit) { box.classList.add('warn'); box.textContent = part + ' is the kit itself.'; return box; }
-    var fk = flatten(kit);
+    var fk = flatten(kit, revObj);
     var direct = fk.get(part);
     var list = function (entry) {
       var ul = h('ul');
       entry.places.forEach(function (pl) { ul.appendChild(h('li', null, placeText(pl) + ' — ' + fmt(pl.qty) + ' per parent, ' + fmt(pl.total) + ' in kit')); });
       return ul;
     };
+    var label = kit + ' rev ' + revObj.rev;
     if (direct) {
       box.classList.add('ok');
-      box.appendChild(h('b', null, 'Yes — ' + part + ' is in ' + kit + '. Total: ' + fmt(direct.total)));
+      box.appendChild(h('b', null, 'Yes — ' + part + ' is in ' + label + '. Total: ' + fmt(direct.total)));
       box.appendChild(list(direct));
-      return box;
+    } else {
+      var via = aliasesOf(part).filter(function (m) { return fk.has(m); });
+      if (via.length) {
+        box.classList.add('warn');
+        box.appendChild(h('b', null, 'Not under this number, but the same physical part is in ' + label + ' as ' + via.join(', ') + '.'));
+        via.forEach(function (m) { box.appendChild(h('div', null, m + ' — total ' + fmt(fk.get(m).total))); box.appendChild(list(fk.get(m))); });
+      } else {
+        box.classList.add('bad');
+        box.appendChild(h('b', null, 'No — ' + part + ' is not in ' + label + '.'));
+      }
     }
-    var via = aliasesOf(part).filter(function (m) { return fk.has(m); });
-    if (via.length) {
-      box.classList.add('warn');
-      box.appendChild(h('b', null, 'Not under this number, but the same physical part is in ' + kit + ' as ' + via.join(', ') + '.'));
-      via.forEach(function (m) { box.appendChild(h('div', null, m + ' — total ' + fmt(fk.get(m).total))); box.appendChild(list(fk.get(m))); });
-      return box;
+    if (revsOf(kit).length > 1) {
+      var summary = revsOf(kit).slice().reverse().map(function (r) {
+        var f = flatten(kit, r);
+        var yes = f.has(part) || aliasesOf(part).some(function (m) { return f.has(m); });
+        return 'Rev ' + r.rev + (yes ? ' ✓' : ' ✗');
+      }).join('  ·  ');
+      box.appendChild(h('div', null, 'All revisions: ' + summary));
     }
-    box.classList.add('bad');
-    box.appendChild(h('b', null, 'No — ' + part + ' is not in ' + kit + '.'));
     return box;
   }
 
@@ -1098,71 +1342,120 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.libNone.hidden = names.length > 0;
     els.libBody.textContent = '';
     names.forEach(function (name) {
-      var a = state.assemblies[name];
       var parents = Array.from(model.parentsOf.get(name) || []).sort(collator.compare);
-      els.libBody.appendChild(h('tr', null,
-        h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { state.kit = name; showTab('kits'); } }, name)),
-        h('td', { class: 'num' }, String(a.items.length)),
-        h('td', null, parents.length ? parents.join(', ') : 'Top level (kit)'),
-        h('td', null, timeText(a.updated)),
-        h('td', null, h('div', { class: 'actions' },
-          h('button', { type: 'button', class: 'btn small', onclick: function () { loadIntoEditor(name); } }, 'Edit'),
-          h('button', { type: 'button', class: 'btn small danger', onclick: function () { deleteAssembly(name); } }, 'Delete')))));
+      revsOf(name).slice().reverse().forEach(function (r) {
+        els.libBody.appendChild(h('tr', null,
+          h('td', null, h('button', { type: 'button', class: 'link', onclick: function () { openKit(name, r.rev); } }, name)),
+          h('td', null, r.rev), h('td', null, r.effective ? dateText(r.effective) : '—'), h('td', null, customersText(r)),
+          h('td', { class: 'num' }, String(r.items.length)),
+          h('td', null, parents.length ? parents.join(', ') : 'Top level (kit)'),
+          h('td', null, h('div', { class: 'actions' },
+            h('button', { type: 'button', class: 'btn small', onclick: function () { loadIntoEditor(name, r.rev); } }, 'Edit'),
+            h('button', { type: 'button', class: 'btn small danger', onclick: function () { deleteRevision(name, r.rev); } }, 'Delete')))));
+      });
     });
     els.knownParts.textContent = '';
     allParts().forEach(function (p) { els.knownParts.appendChild(h('option', { value: p })); });
+    els.knownCustomers.textContent = '';
+    model.customers.forEach(function (c) { els.knownCustomers.appendChild(h('option', { value: c })); });
+    renderCustomers();
     updatePreview();
+  }
+  function renderCustomers() {
+    els.custList.textContent = '';
+    if (!model.customers.length) {
+      els.custList.appendChild(h('p', { class: 'hint' }, 'No customers yet. Add them in the "Customers" field when you save a revision.'));
+      return;
+    }
+    model.customers.forEach(function (c) {
+      var chips = h('div', { class: 'chips' });
+      Object.keys(state.assemblies).sort(collator.compare).forEach(function (name) {
+        revsOf(name).forEach(function (r) {
+          if (r.customers.indexOf(c) > -1) {
+            chips.appendChild(h('button', { type: 'button', class: 'btn small', onclick: function () { openKit(name, r.rev); } }, name + ' · rev ' + r.rev));
+          }
+        });
+      });
+      els.custList.appendChild(h('div', { class: 'formrow', style: 'margin-bottom:.6rem' }, h('b', null, c), chips));
+    });
   }
   function updatePreview() {
     var text = els.asmPaste.value;
     var name = normPart(els.asmName.value);
+    var rev = normRev(els.asmRev.value);
     if (!text.trim()) { els.addPreview.textContent = 'Nothing pasted yet.'; return; }
     var res = parseItems(text);
     var msg = res.items.length + ' parts found';
     if (res.skipped) { msg += ', ' + res.skipped + ' blank rows skipped'; }
     if (res.defaultedQty) { msg += ', ' + res.defaultedQty + ' without a quantity (counted as 1)'; }
-    if (name && state.assemblies[name]) { msg += '. ' + name + ' is already saved and will be replaced.'; }
+    if (name && rev && findRev(name, rev)) { msg += '. ' + name + ' rev ' + rev + ' is already saved and will be replaced.'; }
+    else if (name && rev && state.assemblies[name]) { msg += '. This adds revision ' + rev + ' next to the ' + revsOf(name).length + ' already saved.'; }
     els.addPreview.textContent = msg;
   }
-  function loadIntoEditor(name) {
+  function loadIntoEditor(name, rev) {
+    var r = findRev(name, rev);
     var lines = ['Mtl\tPart\tDescription\tQty/Parent\tType'];
-    state.assemblies[name].items.forEach(function (it) {
+    r.items.forEach(function (it) {
       lines.push([it.mtl === null ? '' : it.mtl, it.part, it.desc, it.qty, it.type].join('\t'));
     });
     els.asmName.value = name;
+    els.asmRev.value = r.rev;
+    els.asmEff.value = r.effective;
+    els.asmCustomers.value = r.customers.join(', ');
+    els.asmNotes.value = r.notes;
     els.asmPaste.value = lines.join('\n');
+    showTab('library');
     updatePreview();
-    els.asmPaste.focus();
+    els.asmCustomers.focus();
   }
-  function deleteAssembly(name) {
-    if (!window.confirm('Delete ' + name + ' and its list of parts? Pictures are kept.')) { return; }
-    delete state.assemblies[name];
+  function clearForm() {
+    els.asmName.value = ''; els.asmRev.value = ''; els.asmEff.value = ''; els.asmCustomers.value = ''; els.asmNotes.value = ''; els.asmPaste.value = '';
+    updatePreview();
+  }
+  function deleteRevision(name, rev) {
+    if (!window.confirm('Delete ' + name + ' rev ' + rev + '? Pictures are kept.')) { return; }
+    var asm = state.assemblies[name];
+    asm.revs = asm.revs.filter(function (r) { return r.rev !== rev; });
+    if (!asm.revs.length) { delete state.assemblies[name]; }
     changed();
   }
   function saveAssembly(e) {
     e.preventDefault();
     var name = normPart(els.asmName.value);
+    var rev = normRev(els.asmRev.value);
     if (!name) { toast('Type the assembly part number first.'); els.asmName.focus(); return; }
+    if (!rev) { toast('Type the revision shown in Epicor, for example 2.'); els.asmRev.focus(); return; }
     var res = parseItems(els.asmPaste.value);
     if (!res.items.length) { toast('Paste the Epicor list first. No parts were found.'); els.asmPaste.focus(); return; }
-    if (state.assemblies[name] && !window.confirm(name + ' is already saved. Replace it with this list?')) { return; }
-    state.assemblies[name] = { items: res.items, updated: new Date().toISOString() };
-    state.kit = state.kit && state.assemblies[state.kit] ? state.kit : name;
-    els.asmName.value = '';
-    els.asmPaste.value = '';
+    if (findRev(name, rev) && !window.confirm(name + ' rev ' + rev + ' is already saved. Replace it with this list?')) { return; }
+    if (!state.assemblies[name]) { state.assemblies[name] = { revs: [] }; }
+    var asm = state.assemblies[name];
+    asm.revs = asm.revs.filter(function (r) { return r.rev !== rev; });
+    asm.revs.push({
+      rev: rev, items: res.items, effective: isDate(els.asmEff.value) ? els.asmEff.value : '',
+      customers: parseCustomers(els.asmCustomers.value), notes: els.asmNotes.value.trim(), updated: new Date().toISOString()
+    });
+    sortRevs(asm);
+    clearForm();
     changed();
-    toast(name + ' saved with ' + res.items.length + ' parts.');
+    toast(name + ' rev ' + rev + ' saved with ' + res.items.length + ' parts.');
   }
   function loadExample() {
-    if (Object.keys(state.assemblies).length && !window.confirm('Add the example assemblies? Any saved assembly with the same part number will be replaced.')) { return; }
+    if (Object.keys(state.assemblies).length && !window.confirm('Add the example? Any saved revision with the same part number and revision will be replaced.')) { return; }
     var now = new Date().toISOString();
-    Object.keys(EXAMPLE).forEach(function (name) {
-      state.assemblies[name] = {
-        updated: now,
-        items: EXAMPLE[name].map(function (r) { return { mtl: r[0], part: normPart(r[1]), desc: r[2], qty: r[3], type: r[4] }; })
-      };
+    EXAMPLE.forEach(function (ex) {
+      var name = normPart(ex.name);
+      if (!state.assemblies[name]) { state.assemblies[name] = { revs: [] }; }
+      var asm = state.assemblies[name];
+      asm.revs = asm.revs.filter(function (r) { return r.rev !== ex.rev; });
+      asm.revs.push({
+        rev: ex.rev, effective: ex.eff, customers: [], notes: ex.notes, updated: now,
+        items: ex.items.map(function (r) { return { mtl: r[0], part: normPart(r[1]), desc: r[2], qty: r[3], type: r[4] }; })
+      });
+      sortRevs(asm);
     });
     state.kit = '77-K298';
+    state.rev = '';
     changed();
     showTab('kits');
     toast('Example loaded.');
@@ -1206,7 +1499,10 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.backupPill.addEventListener('click', function () {
       if (backup.handle && backup.permission !== 'granted') { reconnectFolder(); } else { showTab('backup'); }
     });
-    els.kitSelect.addEventListener('change', function () { state.kit = els.kitSelect.value; state.checkKit = state.kit; renderKits(); });
+    els.kitSelect.addEventListener('change', function () { openKit(els.kitSelect.value, ''); });
+    els.revSelect.addEventListener('change', function () { state.rev = els.revSelect.value; state.cmp = ''; renderKits(); });
+    els.cmpSelect.addEventListener('change', function () { state.cmp = els.cmpSelect.value; renderKits(); });
+    els.editDetails.addEventListener('click', function () { loadIntoEditor(state.kit, state.rev); });
     els.kitFilter.addEventListener('input', renderKits);
     els.hideConfig.addEventListener('change', renderKits);
     els.viewTree.addEventListener('click', function () { state.view = 'tree'; renderKits(); });
@@ -1225,7 +1521,8 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     els.addForm.addEventListener('submit', saveAssembly);
     els.asmPaste.addEventListener('input', updatePreview);
     els.asmName.addEventListener('input', updatePreview);
-    els.addClear.addEventListener('click', function () { els.asmName.value = ''; els.asmPaste.value = ''; updatePreview(); });
+    els.asmRev.addEventListener('input', updatePreview);
+    els.addClear.addEventListener('click', clearForm);
     els.btnConnect.addEventListener('click', connectFolder);
     els.btnReconnect.addEventListener('click', reconnectFolder);
     els.btnBackupNow.addEventListener('click', async function () { await persistAll(); toast(backup.error || 'Backup saved.'); });

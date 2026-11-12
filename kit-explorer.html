@@ -55,6 +55,7 @@ button { cursor: pointer; }
 
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem clamp(1rem, 3vw, 3rem) .5rem; max-width: 120rem; margin: 0 auto; }
 h1 { margin: 0; font-size: 1.4rem; }
+.version { font-size: .8rem; font-weight: 600; color: var(--accent); vertical-align: middle; margin-left: .4rem; }
 .sub { margin: 0; color: var(--muted); font-size: .9rem; }
 .headtools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: .35rem .85rem; font-size: .85rem; box-shadow: var(--shadow); }
@@ -150,7 +151,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 <body>
 <header>
   <div>
-    <h1>Kit Explorer</h1>
+    <h1>Kit Explorer <span class="version" id="appVersion"></span></h1>
     <p class="sub">Kit parts, sub-parts, revisions, customers and reference pictures from Epicor Method Tracker</p>
   </div>
   <div class="headtools">
@@ -388,6 +389,8 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 (function () {
   'use strict';
 
+  var APP_VERSION = 'v6';
+  var APP_UPDATED = 'Nov 12, 2026';
   var BACKUP_FILE = 'kit-explorer-backup.json';
   var PREVIOUS_FILE = 'kit-explorer-backup-previous.json';
   var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -487,7 +490,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 
   var $ = function (id) { return document.getElementById(id); };
   var els = {
-    tabs: $('tabs'), backupPill: $('backupPill'), themeSelect: $('themeSelect'), storageWarn: $('storageWarn'),
+    appVersion: $('appVersion'), tabs: $('tabs'), backupPill: $('backupPill'), themeSelect: $('themeSelect'), storageWarn: $('storageWarn'),
     kitEmpty: $('kitEmpty'), kitContent: $('kitContent'), kitSelect: $('kitSelect'), revSelect: $('revSelect'),
     cmpWrap: $('cmpWrap'), cmpSelect: $('cmpSelect'), editDetails: $('editDetails'), kitMeta: $('kitMeta'), kitDiff: $('kitDiff'),
     kitFilter: $('kitFilter'), viewTree: $('viewTree'), viewFlat: $('viewFlat'), expandAll: $('expandAll'), collapseAll: $('collapseAll'),
@@ -893,7 +896,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     persistAll();
   }
   function backupPayload() {
-    return { app: 'kit-explorer', version: 2, savedAt: new Date().toISOString(), assemblies: state.assemblies, images: state.images };
+    return { app: 'kit-explorer', version: 2, appVersion: APP_VERSION, savedAt: new Date().toISOString(), assemblies: state.assemblies, images: state.images };
   }
   async function persistAll() {
     await idb.set('assemblies', state.assemblies);
@@ -1840,6 +1843,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 
   async function init() {
     wire();
+    els.appVersion.textContent = APP_VERSION + ' · updated ' + APP_UPDATED;
     var savedTheme = 'lagoon';
     try { savedTheme = localStorage.getItem(THEME_KEY) || 'lagoon'; } catch (e) { savedTheme = 'lagoon'; }
     applyTheme(savedTheme);

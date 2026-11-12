@@ -5,40 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kit Explorer</title>
 <style>
-:root {
-  --bg: #f4f6f9; --surface: #ffffff; --text: #1b2430; --muted: #5b6878; --line: #dce2ea;
-  --accent: #0b6e8e; --accent-text: #ffffff; --accent-soft: #e2f1f6;
-  --ok: #17703f; --ok-bg: #e3f5eb; --bad: #a8261e; --bad-bg: #fcebea; --warn: #7d5200; --warn-bg: #fff2d1;
-  --cfg: #8892a0; --shadow: 0 1px 2px rgba(20, 30, 45, .08);
+:root, [data-theme="lagoon"] {
+  color-scheme: dark;
+  --bg: #0a2530; --bg-grad: linear-gradient(135deg, #0a2530 0%, #0f4352 55%, #17606a 100%);
+  --surface: #102f3b; --text: #e8f6f6; --muted: #9ec3c8; --line: #245462;
+  --accent: #4fd8c4; --accent-text: #04242a; --accent-soft: #16404d;
+  --ok: #6fe3a5; --ok-bg: #12382f; --bad: #ff9a8f; --bad-bg: #432024; --warn: #ffd27a; --warn-bg: #4a3a14;
+  --cfg: #7fa2a8; --shadow: 0 2px 8px rgba(0, 0, 0, .25);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #11161c; --surface: #1a212a; --text: #e5eaf1; --muted: #9aa7b8; --line: #2c3644;
-    --accent: #55bddc; --accent-text: #05212b; --accent-soft: #17323d;
-    --ok: #67d49a; --ok-bg: #153325; --bad: #ff8d84; --bad-bg: #3b1b19; --warn: #f2c35a; --warn-bg: #3a2e10;
-    --cfg: #7d8896; --shadow: none;
-  }
+[data-theme="tidepool"] {
+  color-scheme: light;
+  --bg: #e6f5f6; --bg-grad: linear-gradient(135deg, #e9f8f6 0%, #d9eef5 55%, #cfe6f3 100%);
+  --surface: #ffffff; --text: #12333b; --muted: #4d6d75; --line: #c3dce1;
+  --accent: #0d8a8f; --accent-text: #ffffff; --accent-soft: #ddf2f2;
+  --ok: #17703f; --ok-bg: #e0f5e9; --bad: #a8261e; --bad-bg: #fcebea; --warn: #7d5200; --warn-bg: #fff2d1;
+  --cfg: #7b9096; --shadow: 0 1px 3px rgba(18, 51, 59, .12);
+}
+[data-theme="ember"] {
+  color-scheme: dark;
+  --bg: #2b1330; --bg-grad: linear-gradient(135deg, #2b1330 0%, #5a2438 55%, #8a3d3a 100%);
+  --surface: #381a3b; --text: #fff1e6; --muted: #d9b3b8; --line: #6b3a52;
+  --accent: #ffb35c; --accent-text: #2a1200; --accent-soft: #4f2846;
+  --ok: #8ee0a0; --ok-bg: #1f3a2c; --bad: #ff9d9d; --bad-bg: #4a1f26; --warn: #ffd27a; --warn-bg: #4f3a18;
+  --cfg: #b08a98; --shadow: 0 2px 8px rgba(0, 0, 0, .3);
+}
+[data-theme="coral"] {
+  color-scheme: dark;
+  --bg: #0d1b3a; --bg-grad: linear-gradient(135deg, #0d1b3a 0%, #17305e 60%, #27437a 100%);
+  --surface: #152a50; --text: #eef3ff; --muted: #a8b8dc; --line: #2f4a80;
+  --accent: #ff8a78; --accent-text: #33100a; --accent-soft: #20386a;
+  --ok: #79e0ae; --ok-bg: #143a3a; --bad: #ffa5a0; --bad-bg: #4a2030; --warn: #ffd98a; --warn-bg: #4a3d1c;
+  --cfg: #8196c0; --shadow: 0 2px 8px rgba(0, 0, 0, .3);
+}
+[data-theme="aurora"] {
+  color-scheme: dark;
+  --bg: #0e2a24; --bg-grad: linear-gradient(135deg, #0e2a24 0%, #1f3a52 55%, #3a2b5c 100%);
+  --surface: #182f3c; --text: #eaf7f3; --muted: #a9c7c3; --line: #33545e;
+  --accent: #7be0b8; --accent-text: #052018; --accent-soft: #1f4150;
+  --ok: #8be8a8; --ok-bg: #173a30; --bad: #ff9fa0; --bad-bg: #44212f; --warn: #ffd68a; --warn-bg: #4a3d22;
+  --cfg: #84a3a8; --shadow: 0 2px 8px rgba(0, 0, 0, .3);
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; min-height: 100vh; background: var(--bg); background-image: var(--bg-grad); background-attachment: fixed; color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1rem .5rem; max-width: 90rem; margin: 0 auto; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem clamp(1rem, 3vw, 3rem) .5rem; max-width: 120rem; margin: 0 auto; }
 h1 { margin: 0; font-size: 1.4rem; }
 .sub { margin: 0; color: var(--muted); font-size: .9rem; }
+.headtools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: .35rem .85rem; font-size: .85rem; box-shadow: var(--shadow); }
 .pill.good { border-color: var(--ok); color: var(--ok); }
 .pill.attn { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
 
-nav { display: flex; gap: .25rem; padding: 0 1rem; max-width: 90rem; margin: 0 auto; overflow-x: auto; border-bottom: 1px solid var(--line); }
+nav { display: flex; gap: .25rem; padding: 0 clamp(1rem, 3vw, 3rem); max-width: 120rem; margin: 0 auto; overflow-x: auto; border-bottom: 1px solid var(--line); }
 nav button { border: 0; background: none; padding: .65rem 1rem; border-bottom: 3px solid transparent; color: var(--muted); font-weight: 600; white-space: nowrap; }
 nav button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
 
-main { max-width: 90rem; margin: 0 auto; padding: 1rem; }
+main { max-width: 120rem; margin: 0 auto; padding: 1rem clamp(1rem, 3vw, 3rem) 2rem; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: .75rem; padding: 1rem; box-shadow: var(--shadow); margin-bottom: 1rem; }
 h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
 h3 { margin: 1rem 0 .4rem; font-size: 1rem; }
@@ -127,7 +154,17 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     <h1>Kit Explorer</h1>
     <p class="sub">Kit parts, sub-parts, revisions, customers and reference pictures from Epicor Method Tracker</p>
   </div>
-  <button type="button" id="backupPill" class="pill">Backup: not connected</button>
+  <div class="headtools">
+    <label for="themeSelect" class="sub">Theme</label>
+    <select id="themeSelect">
+      <option value="lagoon">Lagoon (dark)</option>
+      <option value="tidepool">Tidepool (light)</option>
+      <option value="ember">Ember Dusk (dark)</option>
+      <option value="coral">Coral Reef (dark)</option>
+      <option value="aurora">Aurora (dark)</option>
+    </select>
+    <button type="button" id="backupPill" class="pill">Backup: not connected</button>
+  </div>
 </header>
 
 <nav role="tablist" aria-label="Sections" id="tabs">
@@ -451,7 +488,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 
   var $ = function (id) { return document.getElementById(id); };
   var els = {
-    tabs: $('tabs'), backupPill: $('backupPill'), storageWarn: $('storageWarn'),
+    tabs: $('tabs'), backupPill: $('backupPill'), themeSelect: $('themeSelect'), storageWarn: $('storageWarn'),
     kitEmpty: $('kitEmpty'), kitContent: $('kitContent'), kitSelect: $('kitSelect'), revSelect: $('revSelect'),
     cmpWrap: $('cmpWrap'), cmpSelect: $('cmpSelect'), editDetails: $('editDetails'), kitMeta: $('kitMeta'), kitDiff: $('kitDiff'),
     kitFilter: $('kitFilter'), viewTree: $('viewTree'), viewFlat: $('viewFlat'), expandAll: $('expandAll'), collapseAll: $('collapseAll'),
@@ -481,8 +518,18 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   var model = null;
   var backup = { handle: null, permission: 'none', savedAt: null, error: '' };
   var saveTimer = 0;
+  var savePending = false;
   var toastTimer = 0;
   var pendingImagePart = '';
+
+  /* ---------- theme ---------- */
+  var THEME_KEY = 'kitExplorerTheme';
+  function applyTheme(name) {
+    var valid = Array.prototype.some.call(els.themeSelect.options, function (o) { return o.value === name; });
+    var theme = valid ? name : 'lagoon';
+    document.documentElement.setAttribute('data-theme', theme);
+    els.themeSelect.value = theme;
+  }
 
   /* ---------- helpers ---------- */
   function h(tag, attrs) {
@@ -844,7 +891,14 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     rebuild();
     renderAll();
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(persistAll, 900);
+    savePending = true;
+    saveTimer = setTimeout(flushSave, 300);
+  }
+  function flushSave() {
+    clearTimeout(saveTimer);
+    if (!savePending) { return; }
+    savePending = false;
+    persistAll();
   }
   function backupPayload() {
     return { app: 'kit-explorer', version: 2, savedAt: new Date().toISOString(), assemblies: state.assemblies, images: state.images };
@@ -1698,6 +1752,12 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 
   /* ---------- events ---------- */
   function wire() {
+    window.addEventListener('pagehide', flushSave);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { flushSave(); } });
+    els.themeSelect.addEventListener('change', function () {
+      applyTheme(els.themeSelect.value);
+      try { localStorage.setItem(THEME_KEY, els.themeSelect.value); } catch (e) { toast('Theme changed, but this browser will not remember it.'); }
+    });
     els.tabs.addEventListener('click', function (e) {
       var btn = e.target.closest('button[data-tab]');
       if (btn) { showTab(btn.getAttribute('data-tab')); }
@@ -1787,6 +1847,9 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
 
   async function init() {
     wire();
+    var savedTheme = 'lagoon';
+    try { savedTheme = localStorage.getItem(THEME_KEY) || 'lagoon'; } catch (e) { savedTheme = 'lagoon'; }
+    applyTheme(savedTheme);
     var opened = await idb.open();
     if (!opened) { els.storageWarn.hidden = false; }
     state.assemblies = sanitizeAssemblies(await idb.get('assemblies'));

@@ -135,7 +135,6 @@ tr.changed td:first-child { box-shadow: inset 4px 0 var(--warn); }
 th.xq, td.xq { text-align: center; font-variant-numeric: tabular-nums; }
 td.xq.has { font-weight: 700; }
 td.xq.qdiff { background: var(--warn-bg); color: var(--warn); }
-.xalias { color: var(--warn); font-size: .8rem; }
 .thumbwrap { display: inline-flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
 .thumbwrap .thumb { width: 2.2rem; height: 2.2rem; }
 
@@ -247,7 +246,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     <div id="xContent" hidden>
       <div class="card">
         <h2>Part cross reference</h2>
-        <p class="hint">Each column is a kit revision. Add as many as you want, including two revisions of the same kit. Each cell shows the total quantity of that part in the kit. A yellow cell means the quantity differs between the columns. "≈" means the kit has the same physical part under another number.</p>
+        <p class="hint">Each column is a kit revision. Add as many as you want, including two revisions of the same kit. Each cell shows the total quantity of that part in the kit. A yellow cell means the quantity differs between the columns. A dash means the part is not in that kit revision.</p>
         <div class="toolbar">
           <label for="xKit">Add column</label>
           <select id="xKit"></select>
@@ -519,6 +518,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   var backup = { handle: null, permission: 'none', savedAt: null, error: '' };
   var saveTimer = 0;
   var savePending = false;
+  var xFilterTimer = 0;
   var toastTimer = 0;
   var pendingImagePart = '';
 
@@ -764,7 +764,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     if (!roots.length) { roots = names.slice().sort(collator.compare); }
     model = {
       desc: desc, parentsOf: parentsOf, roots: roots, customers: Array.from(customers).sort(collator.compare),
-      flatCache: new Map(), usage: new Map(), aliases: new Map(), reached: new Set()
+      flatCache: new Map(), usage: new Map(), aliases: new Map(), wraps: new Map(), reached: new Set()
     };
     var addUsage = function (name, r, orphan) {
       flatten(name, r).forEach(function (entry, part) {
@@ -815,30 +815,22 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     return out;
   }
   function buildAliases(names) {
-    var adj = new Map();
     var link = function (a, b) {
-      if (!adj.has(a)) { adj.set(a, new Set()); }
-      if (!adj.has(b)) { adj.set(b, new Set()); }
-      adj.get(a).add(b); adj.get(b).add(a);
+      if (!model.aliases.has(a)) { model.aliases.set(a, []); }
+      if (!model.aliases.has(b)) { model.aliases.set(b, []); }
+      if (model.aliases.get(a).indexOf(b) < 0) { model.aliases.get(a).push(b); }
+      if (model.aliases.get(b).indexOf(a) < 0) { model.aliases.get(b).push(a); }
     };
     names.forEach(function (name) {
-      state.assemblies[name].revs.forEach(function (r) {
-        var real = r.items.filter(function (it) { return it.type !== 'M' && it.qty > 0; });
-        if (real.length === 1 && real[0].qty === 1 && real[0].part !== name) { link(name, real[0].part); }
-      });
-    });
-    adj.forEach(function (_, start) {
-      if (model.aliases.has(start)) { return; }
-      var group = [], queue = [start], seen = new Set([start]);
-      while (queue.length) {
-        var cur = queue.shift();
-        group.push(cur);
-        adj.get(cur).forEach(function (n) { if (!seen.has(n)) { seen.add(n); queue.push(n); } });
+      var real = latestRev(name).items.filter(function (it) { return it.type !== 'M' && it.qty > 0; });
+      if (real.length === 1 && real[0].qty === 1 && real[0].part !== name) {
+        link(name, real[0].part);
+        model.wraps.set(name, real[0].part);
       }
-      group.forEach(function (p) { model.aliases.set(p, group.filter(function (g) { return g !== p; })); });
     });
   }
   function aliasesOf(part) { return model.aliases.get(part) || []; }
+  function wrappedBy(part) { return model.wraps.has(part) ? [model.wraps.get(part)] : []; }
   function buildTree(name, revObj) {
     var A = state.assemblies;
     var asOf = revObj.effective;
@@ -1113,10 +1105,10 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
   }
   function renderAll() {
     if (!model) { return; }
-    renderKits();
-    renderLookup();
-    renderXref();
-    renderLibrary();
+    if (state.tab === 'kits') { renderKits(); }
+    else if (state.tab === 'lookup') { renderLookup(); }
+    else if (state.tab === 'xref') { renderXref(); }
+    else if (state.tab === 'library') { renderLibrary(); }
     renderBackup();
   }
   function fillKitSelect(select, value) {
@@ -1465,7 +1457,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       box.appendChild(h('b', null, 'Yes — ' + part + ' is in ' + label + '. Total: ' + fmt(direct.total)));
       box.appendChild(list(direct));
     } else {
-      var via = aliasesOf(part).filter(function (m) { return fk.has(m); });
+      var via = wrappedBy(part).filter(function (m) { return fk.has(m); });
       if (via.length) {
         box.classList.add('warn');
         box.appendChild(h('b', null, 'Not under this number, but the same physical part is in ' + label + ' as ' + via.join(', ') + '.'));
@@ -1478,7 +1470,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     if (revsOf(kit).length > 1) {
       var summary = revsOf(kit).slice().reverse().map(function (r) {
         var f = flatten(kit, r);
-        var yes = f.has(part) || aliasesOf(part).some(function (m) { return f.has(m); });
+        var yes = f.has(part) || wrappedBy(part).some(function (m) { return f.has(m); });
         return 'Rev ' + r.rev + (yes ? ' ✓' : ' ✗');
       }).join('  ·  ');
       box.appendChild(h('div', null, 'All revisions: ' + summary));
@@ -1501,8 +1493,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       var cells = cols.map(function (c) {
         var e = c.flat.get(p);
         if (e) { present.push(e.total); return { kind: 'has', total: e.total, cfg: e.places.every(function (pl) { return pl.type === 'M'; }) }; }
-        var via = aliasesOf(p).filter(function (m) { return c.flat.has(m); });
-        return via.length ? { kind: 'alias', alias: via[0] } : { kind: 'none' };
+        return { kind: 'none' };
       });
       var cfg = cells.some(function (x) { return x.kind === 'has'; }) && cells.every(function (x) { return x.kind !== 'has' || x.cfg; });
       return {
@@ -1571,7 +1562,6 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       ];
       r.cells.forEach(function (c) {
         if (c.kind === 'has') { cells.push(h('td', { class: 'xq has' + (r.qtyDiffer ? ' qdiff' : '') }, fmt(c.total))); }
-        else if (c.kind === 'alias') { cells.push(h('td', { class: 'xq', title: 'Same physical part as ' + c.alias }, h('span', { class: 'xalias' }, '≈ ' + c.alias))); }
         else { cells.push(h('td', { class: 'xq muted' }, '—')); }
       });
       cells.push(h('td', { class: 'xq' }, r.inCount + '/' + cols.length), h('td', null, pictureCell(r.part)));
@@ -1591,7 +1581,7 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
     };
     var lines = [['Part', 'Description'].concat(cols.map(colLabel)).concat(['In', 'Pictures']).map(safe).join(',')];
     shown.forEach(function (r) {
-      var cells = r.cells.map(function (c) { return c.kind === 'has' ? fmt(c.total) : (c.kind === 'alias' ? '~' + c.alias : ''); });
+      var cells = r.cells.map(function (c) { return c.kind === 'has' ? fmt(c.total) : ''; });
       lines.push([r.part, r.desc].concat(cells).concat([r.inCount + '/' + cols.length, (state.images[r.part] || []).length]).map(safe).join(','));
     });
     var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv' });
@@ -1792,7 +1782,10 @@ dialog img { max-width: 100%; max-height: 75vh; display: block; margin-bottom: .
       renderXref();
     });
     els.xClear.addEventListener('click', function () { state.xref = []; state.xrefTouched = true; saveXref(); renderXref(); });
-    els.xFilter.addEventListener('input', renderXref);
+    els.xFilter.addEventListener('input', function () {
+      clearTimeout(xFilterTimer);
+      xFilterTimer = setTimeout(renderXref, 200);
+    });
     els.xMode.addEventListener('change', renderXref);
     els.xHideCfg.addEventListener('change', renderXref);
     els.xExport.addEventListener('click', exportXrefCsv);

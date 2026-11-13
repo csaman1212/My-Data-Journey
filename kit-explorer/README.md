@@ -1,8 +1,8 @@
 # Kit Explorer
 
-A single-file tool (`Kit Explorer.html`) for checking Epicor kits: parts, sub-parts, quantities,
+A single-file tool (`Kit Explorer vN.html`, where N is the version) for checking Epicor kits: parts, sub-parts, quantities,
 revisions, customers, and reference pictures. No install and no internet needed. Open
-`Kit Explorer.html` in Chrome or Edge.
+`Kit Explorer vN.html` in Chrome or Edge.
 
 ## Load a kit from Epicor
 1. In Method Tracker click an assembly (kit, box, or a part with an arrow), then Materials > List.
